@@ -32,7 +32,7 @@
 <p align="center">
   <a href="https://youtu.be/VeL1t_9wYrM?si=e5plWxUvcQX88zFm"><strong>📺 Advertisement Video</strong></a>
   &nbsp;&nbsp;|&nbsp;&nbsp;
-  <a href="https://canva.link/8ibtr7vefrchxkn"><strong>📊 Project Presentation</strong></a>
+  <a href="https://canva.link/8ibtr7vefrchxkn"><strong>📊 SCAMPER Presentation</strong></a>
 </p>
 
 ---
@@ -88,11 +88,11 @@ MakerMania-2026-CircuitBreakers/
 
 ## 1.2 Team Members
 
-| Name | Role | Department | Skills |
-|:-----|:-----|:-----------|:-------|
-| Ekansh Bansode | — | ECS | — |
-| Omkar Karale | — | ECS | — |
-| Rajnarayan Hazra | — | ECS | — |
+| Name | Department | Year |
+|:-----|:-----------|:-----|
+| Ekansh Bansode | ECS | 2025-26 |
+| Omkar Karale | ECS | 2025-26 |
+| Rajnarayan Hazra | ECS | 2024-25 |
 
 ---
 
