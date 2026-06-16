@@ -56,18 +56,28 @@
 
 ```text
 MakerMania-2026-CircuitBreakers/
-├── README.md                 # Project workbook (this file)
-├── Instruction.md            # GitHub workflow guide
+├── README.md                         # Project workbook (this file)
+├── Instruction.md                    # GitHub workflow guide
+├── 3D SPOOL.f3d                      # Main spool CAD model
+├── Medicine_Dispenser/
+│   ├── Component_list.txt            # Project hardware list
+│   └── ELECTRONICS/                  # KiCad electronics project files
+├── cad/
+│   ├── tmp.txt
+│   └── USELESS/                      # Old / unused CAD reference files
 ├── code/
 │   └── Arduino/
-│       ├── led_chaser.ino    # ESP32 LED chaser
-│       ├── potentiometer.ino # Potentiometer-controlled LEDs
-│       └── binary_counter.ino# Binary counter display
-├── images/                   # Sketches, photos, diagrams
-├── docs/                     # Notes and reference material
+│       ├── led_chaser.ino            # ESP32 LED chaser
+│       ├── potentiometer.ino         # Potentiometer-controlled LEDs
+│       └── binary_counter.ino        # Binary counter display
+├── docs/
+│   ├── Birdex.pdf
+│   └── tmp.txt
+├── images/                           # Sketches, photos, diagrams
 └── Training Material/
-    ├── Fusion 360/           # CAD keychain design
-    └── Laser/                # Laser-cut ID & F1 designs
+    ├── Fusion 360/                   # CAD keychain design practice files
+    ├── KiCad/                        # KiCad training material
+    └── Laser/                        # Laser-cut ID and design files
 ```
 
 ---
