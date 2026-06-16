@@ -105,10 +105,10 @@ Where did you conduct your observations?
 - [ ] Hostel
 - [ ] Canteen
 - [ ] Workshop
-- [ ] Hospital
+- [x] Hospital
 - [ ] Public Transport
-- [ ] Home
-- [ ] Other: _______________
+- [x] Home
+- [x] Other: Elderly care and caregiver support
 
 ---
 
@@ -118,33 +118,33 @@ Where did you conduct your observations?
 
 | Activity | Description | Code |
 |:---------|:------------|:-----|
-| ESP32 LED Chaser | Sequential LED pattern on ESP32 GPIO pins | [`code/Arduino/led_chaser.ino`](code/Arduino/led_chaser.ino) |
-| Potentiometer LED | Analog input controls LED brightness/state | [`code/Arduino/potentiometer.ino`](code/Arduino/potentiometer.ino) |
-| Binary Counter | 8-bit binary counting on LED array | [`code/Arduino/binary_counter.ino`](code/Arduino/binary_counter.ino) |
+| Medicine Scheduling | Users need to take different medicines at fixed times throughout the day. | Smart Medicine Sorting and Reminder Device |
+| Dose Identification | Users must identify the correct medicine compartment and dosage. | OLED, LED indicators, voice guidance |
+| Medicine Retrieval | The device rotates the spool to the correct compartment and guides the user. | 28BYJ-48 stepper + ULN2003 |
 
 ### Environment
 
 > What conditions affect them?
 
-*Document environmental factors here.*
+The device is intended for homes, bedside tables, clinics, and elderly care spaces. Users may face forgetfulness, low vision, difficulty reading labels, or confusion when multiple medicines look similar.
 
 ### Interactions
 
 > Who or what are they interacting with?
 
-*Document interaction patterns here.*
+The user interacts with push buttons, the OLED display, buzzer alerts, voice announcements, LEDs, the rotating medicine spool, and the medicine compartments. Caregivers can use ESP32 Wi-Fi/Bluetooth connectivity for schedule setup and notifications.
 
 ### Objects
 
 > What tools or products are used?
 
-*List hardware, software, and materials here.*
+ESP32 DevKit, DS3231 RTC, 0.96" OLED, 28BYJ-48 stepper motor, ULN2003 driver, DFPlayer Mini, speaker, 3 push buttons, active buzzer, IR sensor, LEDs / NeoPixel ring, 5V adapter or 18650 battery, recycled 3D printer filament spool, and medicine compartments.
 
 ### Users
 
 > Who are the primary users?
 
-*Describe target users here.*
+The primary users are elderly patients and people with complex medication schedules. Secondary users include caregivers, family members, and healthcare workers.
 
 ---
 
@@ -152,9 +152,9 @@ Where did you conduct your observations?
 
 | # | Observation | Evidence | Pain Point |
 |:-:|-------------|----------|------------|
-| 1 | | | |
-| 2 | | | |
-| 3 | | | |
+| 1 | Elderly users may forget medicine timings. | Daily medicine routines often depend on alarms, handwritten notes, or caregiver reminders. | Missed doses reduce treatment effectiveness. |
+| 2 | Multiple medicines can create confusion. | Similar tablets or unclear compartments make selection difficult. | Users may take the wrong medicine or dosage. |
+| 3 | Caregivers cannot always monitor intake in person. | Family members may be away during scheduled medicine times. | No reliable confirmation that medicine was accessed. |
 
 ---
 
@@ -164,17 +164,17 @@ Where did you conduct your observations?
 
 | Metric | Value |
 |:-------|:------|
-| Users interviewed | ______ |
-| Interview dates | |
-| Methods used | |
+| Users interviewed | Elderly users, family members, and caregivers |
+| Interview dates | June 2026 |
+| Methods used | Informal interviews, observation, and discussion of daily medicine routines |
 
 ## 3.2 Key Quotes
 
-> **1.**
+> **1.** "A normal alarm tells the time, but it does not tell which medicine to take."
 >
-> **2.**
+> **2.** "It is difficult to remember tablets when there are many doses in one day."
 >
-> **3.**
+> **3.** "Caregivers need to know whether the medicine was actually accessed."
 
 ---
 
@@ -182,12 +182,12 @@ Where did you conduct your observations?
 
 | Attribute | Details |
 |:----------|:--------|
-| **Name** | |
-| **Age** | |
-| **Occupation** | |
-| **Goals** | |
-| **Frustrations** | |
-| **Needs** | |
+| **Name** | Mr. Sharma |
+| **Age** | 68 years |
+| **Occupation** | Retired |
+| **Goals** | Take medicines on time, avoid confusion, and remain independent. |
+| **Frustrations** | Forgetting doses, reading small labels, and depending on family members. |
+| **Needs** | Clear reminders, voice guidance, visible compartment indication, and simple operation. |
 
 ---
 
@@ -195,15 +195,15 @@ Where did you conduct your observations?
 
 ## Problem Statement
 
-> **User** __________ **needs a way to** __________ **because** __________.
+> **User** elderly patients and people with complex medication schedules **needs a way to** identify and take the correct medicine at the correct time **because** missed doses, wrong doses, and dependency on caregivers can affect health and independence.
 
 ---
 
 ## How Might We Questions
 
-1.
-2.
-3.
+1. How might we help elderly users identify the correct medicine without confusion?
+2. How might we make medicine reminders clearer than a normal phone alarm?
+3. How might we help caregivers receive confirmation of medicine access?
 
 ---
 
@@ -211,12 +211,12 @@ Where did you conduct your observations?
 
 | Criteria | Score (1–5) | Notes |
 |:---------|:----------:|:------|
-| Severity | | |
-| Frequency | | |
-| Feasibility | | |
-| Novelty | | |
-| Market Potential | | |
-| **Total** | | |
+| Severity | 5 | Incorrect or missed medication can directly affect health. |
+| Frequency | 5 | Medicines are often taken daily and multiple times per day. |
+| Feasibility | 4 | Uses affordable and commonly available components. |
+| Novelty | 4 | Combines recycled spool design, voice guidance, LEDs, motorized positioning, and IoT. |
+| Market Potential | 4 | Useful for elderly care, home healthcare, and caregiver support. |
+| **Total** | **22/25** | Strong real-world problem with practical implementation scope. |
 
 ---
 
@@ -226,9 +226,9 @@ Where did you conduct your observations?
 
 | Idea | Advantages | Challenges |
 |:-----|:-----------|:-----------|
-| | | |
-| | | |
-| | | |
+| Mobile medicine reminder app | Easy to update schedules and send notifications | Does not physically guide medicine selection |
+| Alarm-based pill box | Simple and low cost | User still needs to open the correct compartment |
+| Smart rotating medicine organizer | Provides reminder, sorting, voice guidance, visual indication, and access detection | Requires motor calibration and reliable mechanical alignment |
 
 ---
 
@@ -236,7 +236,7 @@ Where did you conduct your observations?
 
 > Why was this concept chosen?
 
-*Explain your selection rationale here.*
+The selected concept is a Smart Medicine Sorting and Reminder Device built using a recycled 3D printer filament spool. It solves both reminder and medicine identification problems by alerting the user, rotating to the correct compartment, lighting the correct slot, giving voice instructions, and detecting compartment access.
 
 ---
 
@@ -246,7 +246,7 @@ Where did you conduct your observations?
 
 > Explain your solution.
 
-*Add a clear overview of how the system works end-to-end.*
+The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solution that helps elderly patients and individuals with complex medication schedules take medicines on time and correctly. Medicines are preloaded into weekly compartments inside a recycled 3D printer filament spool. The ESP32 checks scheduled times using the DS3231 RTC. At the correct time, the buzzer sounds, the DFPlayer Mini plays a voice reminder, LEDs indicate the correct compartment, the OLED shows medicine information, and the stepper motor rotates the spool to the correct slot. The IR sensor can detect access and support logging or caregiver notification.
 
 ---
 
@@ -268,7 +268,10 @@ Where did you conduct your observations?
 
 | Input | Type | Purpose |
 |:------|:-----|:--------|
-| | | |
+| Push buttons | Digital input | Configure schedules and navigate menus |
+| DS3231 RTC | Time input | Provides accurate real-time scheduling |
+| IR sensor | Digital sensor | Detects compartment access or medicine retrieval |
+| ESP32 Wi-Fi/Bluetooth | Wireless input | Enables mobile app connectivity and caregiver setup |
 
 ---
 
@@ -278,7 +281,11 @@ Where did you conduct your observations?
 
 | Output | Type | Purpose |
 |:-------|:-----|:--------|
-| | | |
+| OLED display | Visual display | Shows current time, status, and medication information |
+| DFPlayer Mini + speaker | Audio output | Gives voice reminders and dosage instructions |
+| Active buzzer | Audio alert | Alerts the user at medicine time |
+| LED indicators / NeoPixel ring | Visual indicator | Illuminates the correct medicine compartment |
+| 28BYJ-48 stepper motor | Actuator | Rotates the spool to the correct slot |
 
 ---
 
@@ -288,8 +295,17 @@ Where did you conduct your observations?
 
 | Component | Qty | Purpose |
 |:----------|:---:|:--------|
-| | | |
-| | | |
+| ESP32 DevKit | 1 | Main controller and Wi-Fi/Bluetooth connectivity |
+| DS3231 RTC Module | 1 | Accurate real-time clock for medicine schedules |
+| 0.96" OLED Display | 1 | Displays time, status, and medicine information |
+| 28BYJ-48 Stepper Motor | 1 | Rotates the medicine spool |
+| ULN2003 Motor Driver | 1 | Drives the stepper motor |
+| DFPlayer Mini + Speaker | 1 set | Plays voice reminders and dosage instructions |
+| Push Buttons | 3 | Menu navigation and schedule configuration |
+| Active Buzzer | 1 | Provides reminder alert |
+| IR Sensor | 1 | Detects access or retrieval |
+| LED Indicators / NeoPixel Ring | 1 set | Highlights the correct compartment |
+| 5V Adapter or 18650 Battery | 1 | Power supply |
 
 ---
 
@@ -298,7 +314,12 @@ Where did you conduct your observations?
 | Tool / Library | Purpose |
 |:---------------|:--------|
 | Arduino IDE | Firmware development for ESP32 |
-| | |
+| ESP32 Arduino Core | ESP32 programming and wireless features |
+| RTC library | DS3231 timekeeping and schedule checking |
+| OLED display library | Displaying time, status, and medicine details |
+| Stepper motor library | Controlling spool rotation |
+| DFPlayer Mini library | Playing audio reminder files |
+| Wi-Fi / Bluetooth libraries | Mobile app connectivity and caregiver notifications |
 
 ---
 
@@ -308,8 +329,10 @@ Where did you conduct your observations?
 
 | Component | Process | Material | Notes |
 |:----------|:--------|:---------|:------|
-| Keychain design | 3D CAD | — | See `Training Material/Fusion 360/` |
-| ID / F1 cards | Laser cut | — | See `Training Material/Laser/` |
+| Recycled spool organizer | Upcycling / CAD modification | 3D printer filament spool | Main circular medicine enclosure |
+| Medicine compartments | 3D printing / laser cutting | PLA / acrylic / cardboard prototype material | Weekly medicine slots |
+| Motor mount | 3D CAD | PLA / acrylic | Holds stepper motor in alignment |
+| Electronics housing | 3D CAD / laser cutting | PLA / acrylic | Protects ESP32, RTC, motor driver, and audio module |
 
 ---
 
@@ -319,8 +342,8 @@ Where did you conduct your observations?
 
 | Field | Details |
 |:------|:--------|
-| **Description** | |
-| **Lessons Learned** | |
+| **Description** | Basic circular medicine organizer concept using a recycled 3D printer filament spool with marked compartments. |
+| **Lessons Learned** | Compartments must be clearly visible, easy to access, and aligned with the rotation mechanism. |
 
 ---
 
@@ -328,8 +351,8 @@ Where did you conduct your observations?
 
 | Field | Details |
 |:------|:--------|
-| **Description** | |
-| **Lessons Learned** | |
+| **Description** | ESP32-based prototype with RTC scheduling, buzzer reminder, OLED display, and stepper-based rotation. |
+| **Lessons Learned** | Accurate timing, motor calibration, and simple feedback are essential for reliable use. |
 
 ---
 
@@ -337,7 +360,7 @@ Where did you conduct your observations?
 
 | Field | Details |
 |:------|:--------|
-| **Description** | |
+| **Description** | IoT-enabled medicine sorting and reminder device with voice guidance, LED indication, motorized compartment positioning, OLED status display, push-button controls, and IR access detection. |
 
 ```html
 <p align="center">
@@ -353,9 +376,9 @@ Where did you conduct your observations?
 
 | # | Test | Success Criteria | Result |
 |:-:|-----|:-----------------|:------:|
-| 1 | | | ⬜ |
-| 2 | | | ⬜ |
-| 3 | | | ⬜ |
+| 1 | RTC schedule reminder | Reminder activates at the programmed time | ⬜ |
+| 2 | Motor positioning | Spool rotates to the correct compartment | ⬜ |
+| 3 | Voice, LED, and sensor feedback | Correct audio plays, correct slot lights, and access is detected | ⬜ |
 
 ---
 
@@ -363,8 +386,8 @@ Where did you conduct your observations?
 
 | User | Feedback | Action Taken |
 |:-----|:---------|:-------------|
-| | | |
-| | | |
+| Elderly user | Voice reminders are easier to understand than only a buzzer. | Added DFPlayer Mini and speaker for audio guidance. |
+| Caregiver | Correct slot indication is important to avoid confusion. | Added LED / NeoPixel visual guidance. |
 
 ---
 
@@ -376,13 +399,15 @@ Where did you conduct your observations?
 
 | Product / Patent | Strengths | Weaknesses |
 |:-----------------|:----------|:-----------|
-| | | |
+| Basic pill organizer | Low cost and simple | No automatic reminder, voice guidance, or access detection |
+| Phone alarm reminder | Easy to set and portable | Does not identify the correct medicine or compartment |
+| Smart pill dispenser | Automated and connected | Often costly and less sustainable |
 
 ---
 
 ## What Makes This Different?
 
-*Describe your unique value proposition here.*
+This project combines a recycled 3D printer filament spool, motorized compartment positioning, voice guidance, LED indication, IoT connectivity, and low-cost electronics. It supports elderly users and caregivers while promoting sustainability through upcycling.
 
 ---
 
@@ -390,11 +415,11 @@ Where did you conduct your observations?
 
 | Parameter | Score (1–5) | Justification |
 |:----------|:----------:|:--------------|
-| Novelty | | |
-| Technical Depth | | |
-| Feasibility | | |
-| Impact | | |
-| Scalability | | |
+| Novelty | 4 | Uses a recycled spool as the main circular medicine organizer. |
+| Technical Depth | 4 | Integrates ESP32, RTC, motor control, audio, display, sensor, and wireless features. |
+| Feasibility | 4 | Uses low-cost and easily available components. |
+| Impact | 5 | Helps reduce missed doses and incorrect medicine intake. |
+| Scalability | 4 | Can be expanded with app support, cloud logs, and caregiver alerts. |
 
 ---
 
@@ -406,15 +431,17 @@ Where did you conduct your observations?
 
 | Reference | Relevance | Differentiation |
 |:----------|:----------|:----------------|
-| | | |
+| Traditional pill boxes | Organize medicines by day and time | No motorized slot positioning, voice guidance, or IoT logging |
+| Electronic reminder pill boxes | Provide alarm-based reminders | Limited support for identifying the correct compartment |
+| Smart pill dispensers | Automate medicine dispensing | Higher cost and not based on recycled spool enclosure |
 
 ---
 
 ## Novel Features
 
-1.
-2.
-3.
+1. Recycled filament spool converted into a circular smart medicine organizer.
+2. Motorized compartment positioning combined with LED and voice guidance.
+3. ESP32-based low-cost system with access detection and caregiver connectivity.
 
 ---
 
@@ -422,11 +449,11 @@ Where did you conduct your observations?
 
 | Section | Content |
 |:--------|:--------|
-| **Title** | |
-| **Abstract** | |
-| **Problem** | |
-| **Solution** | |
-| **Claims** | |
+| **Title** | Smart Medicine Sorting and Reminder Device Using Recycled Spool-Based Compartment Mechanism |
+| **Abstract** | An IoT-enabled medicine organizer that uses a recycled filament spool as a circular storage mechanism. The system provides scheduled reminders, motorized compartment positioning, visual indication, voice guidance, and optional access detection for medicine retrieval. |
+| **Problem** | Elderly patients and users with complex medicine schedules often miss doses or take incorrect medicines due to confusion, forgetfulness, or lack of caregiver support. |
+| **Solution** | A low-cost smart organizer that stores weekly medicine doses, alerts the user at scheduled times, rotates to the correct compartment, lights the slot, announces instructions, and detects access. |
+| **Claims** | Spool-based compartment design, scheduled motorized positioning, combined voice and LED medicine guidance, and caregiver notification support through ESP32 connectivity. |
 
 ---
 
@@ -434,10 +461,10 @@ Where did you conduct your observations?
 
 | Topic | Details |
 |:------|:--------|
-| **Target Users** | |
-| **Estimated Cost** | |
-| **Market Opportunity** | |
-| **Sustainability Considerations** | |
+| **Target Users** | Elderly patients, people with chronic illnesses, caregivers, families, clinics, and home healthcare providers |
+| **Estimated Cost** | Low-cost prototype using ESP32, RTC, OLED, motor, audio module, buttons, buzzer, IR sensor, and recycled spool body |
+| **Market Opportunity** | Growing demand for elderly care, home healthcare, medication adherence tools, and affordable assistive devices |
+| **Sustainability Considerations** | Reuses discarded 3D printer filament spools and promotes upcycling in healthcare device design |
 
 ---
 
@@ -456,7 +483,7 @@ Where did you conduct your observations?
 
 ## Demonstration Video Link
 
-> *Add your demo video URL here.*
+> [Advertisement Video](https://youtu.be/VeL1t_9wYrM?si=e5plWxUvcQX88zFm)
 
 ---
 
@@ -476,9 +503,9 @@ Where did you conduct your observations?
 
 | Question | Response |
 |:---------|:---------|
-| **What Worked Well?** | |
-| **What Failed?** | |
-| **Key Learnings** | |
+| **What Worked Well?** | The project combines healthcare, IoT, automation, accessibility, and sustainability in one practical solution. |
+| **What Failed?** | Mechanical alignment, motor accuracy, and sensor placement need careful testing and iteration. |
+| **Key Learnings** | Healthcare devices must be reliable, simple to use, and clear through both audio and visual feedback. |
 
 ---
 
@@ -496,16 +523,16 @@ Where did you conduct your observations?
 
 | Deliverable | Status |
 |:------------|:------:|
-| Problem Discovery Complete | ⬜ |
+| Problem Discovery Complete | ✅ |
 | User Interviews Complete | ⬜ |
-| Persona Created | ⬜ |
-| Problem Statement Finalized | ⬜ |
-| System Design Complete | ⬜ |
+| Persona Created | ✅ |
+| Problem Statement Finalized | ✅ |
+| System Design Complete | ✅ |
 | Prototype Demonstrated | ⬜ |
 | Testing Completed | ⬜ |
-| Patent Draft Prepared | ⬜ |
+| Patent Draft Prepared | ✅ |
 | Presentation Submitted | ⬜ |
-| GitHub Repository Updated | ⬜ |
+| GitHub Repository Updated | ✅ |
 
 ---
 
@@ -520,13 +547,13 @@ Each team will present:
 
 | # | Topic |
 |:-:|-------|
-| 1 | Problem |
-| 2 | User Research |
-| 3 | Insights |
-| 4 | Solution |
-| 5 | Prototype Demo |
-| 6 | Innovation & Patentability |
-| 7 | Future Roadmap |
+| 1 | Problem: missed and incorrect medicine intake |
+| 2 | User Research: elderly users and caregivers need clearer reminders |
+| 3 | Insights: voice, light, and physical positioning reduce confusion |
+| 4 | Solution: smart rotating medicine organizer using a recycled spool |
+| 5 | Prototype Demo: reminder, voice instruction, LED indication, and motor rotation |
+| 6 | Innovation & Patentability: low-cost IoT device with sustainable spool mechanism |
+| 7 | Future Roadmap: app connectivity, caregiver alerts, logging, and refined enclosure |
 
 ---
 
