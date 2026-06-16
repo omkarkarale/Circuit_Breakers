@@ -1,0 +1,9 @@
+ESP32 DevKit
+DS3231 RTC
+0.96" OLED
+28BYJ-48 stepper + ULN2003
+DFPlayer Mini + speaker
+3 push buttons
+Active buzzer
+IR sensor
+5V adapter or 18650 battery
