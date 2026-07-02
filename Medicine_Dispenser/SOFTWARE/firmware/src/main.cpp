@@ -1,18 +1,29 @@
 #include <Arduino.h>
 
-// put function declarations here:
-int myFunction(int, int);
+#include "App.h"
+#include "Config.h"
+#include "Logger.h"
+
+App app;
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  Serial.begin(Config::serialBaudRate());
+
+  Serial.println("================================");
+  Serial.println(Config::firmwareName());
+  Serial.print("Version ");
+  Serial.println(Config::firmwareVersion());
+  Serial.println("Booting...");
+
+  Logger::begin();
+
+  app.begin();
+
+  Logger::info("System Ready");
+  Serial.println("================================");
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  app.update();
+  delay(Config::mainLoopDelayMs());
 }
