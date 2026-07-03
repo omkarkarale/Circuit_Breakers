@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>About MedLink IoT</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#2a1700",
+                    "secondary-container": "#7cf994",
+                    "on-tertiary-container": "#ffeedd",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "surface-tint": "#0053db",
+                    "on-primary-fixed": "#00174b",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#263143",
+                    "surface-variant": "#d8e3fb",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f9f9ff",
+                    "primary": "#004ac6",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#7ffc97",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#ecf1ff",
+                    "primary-container": "#2563eb",
+                    "inverse-primary": "#b4c5ff",
+                    "on-secondary-fixed-variant": "#005320",
+                    "on-primary-fixed-variant": "#003ea8",
+                    "background": "#f9f9ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface-variant": "#434655",
+                    "surface": "#f9f9ff",
+                    "tertiary-container": "#996100",
+                    "primary-fixed": "#dbe1ff",
+                    "on-primary-container": "#eeefff",
+                    "outline-variant": "#c3c6d7",
+                    "surface-dim": "#cfdaf2",
+                    "secondary-fixed-dim": "#62df7d",
+                    "error-container": "#ffdad6",
+                    "surface-container-high": "#dee8ff",
+                    "tertiary": "#784b00",
+                    "tertiary-fixed": "#ffddb8",
+                    "on-background": "#111c2d",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "surface-container-low": "#f0f3ff",
+                    "error": "#ba1a1a",
+                    "on-surface": "#111c2d",
+                    "secondary": "#006e2d",
+                    "on-secondary-fixed": "#002109",
+                    "surface-container": "#e7eeff",
+                    "outline": "#737686",
+                    "surface-container-highest": "#d8e3fb",
+                    "on-secondary-container": "#007230"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "touch-target-min": "48px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "gutter": "16px",
+                    "container-padding": "24px",
+                    "stack-lg": "24px",
+                    "unit": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .bento-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        .bento-item-large {
+            grid-column: span 2;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="w-full top-0 sticky z-50 bg-background flex justify-between items-center px-gutter py-stack-md">
+<div class="flex items-center gap-3">
+<button class="active:scale-95 transition-transform p-2 hover:bg-surface-variant rounded-full" onclick="history.back()">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm text-primary font-bold">About</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined text-on-surface-variant p-2 hover:bg-surface-variant rounded-full transition-colors active:scale-95">share</button>
+</div>
+</header>
+<main class="px-container-padding pt-stack-lg space-y-stack-lg">
+<!-- Brand Identity Section -->
+<section class="flex flex-col items-center justify-center text-center py-8">
+<div class="w-24 h-24 bg-primary-container rounded-3xl flex items-center justify-center shadow-lg mb-6 active:scale-90 transition-all">
+<span class="material-symbols-outlined text-white text-[48px]" style="font-variation-settings: 'FILL' 1;">medication</span>
+</div>
+<h2 class="font-headline-lg-mobile text-headline-lg-mobile text-on-surface">MedLink IoT</h2>
+<p class="font-label-lg text-label-lg text-primary mt-1">v1.0.0 Stable Build</p>
+</section>
+<!-- Bento Stats Grid -->
+<div class="bento-grid">
+<!-- Hardware Specs -->
+<div class="bento-item-large glass-card p-stack-lg rounded-xl border border-outline-variant/30 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-secondary-container">memory</span>
+</div>
+<div>
+<p class="font-label-sm text-label-sm text-on-surface-variant">ESP32 Firmware</p>
+<p class="font-headline-sm text-headline-sm text-on-surface">v2.4.1-stable</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-secondary">verified</span>
+</div>
+<!-- Hackathon Info -->
+<div class="glass-card p-stack-lg rounded-xl border border-outline-variant/30 shadow-sm col-span-1">
+<span class="material-symbols-outlined text-primary mb-3">workspace_premium</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Event</p>
+<p class="font-label-lg text-label-lg text-on-surface mt-1">HealthTech Hack 2024</p>
+</div>
+<!-- Server Status -->
+<div class="glass-card p-stack-lg rounded-xl border border-outline-variant/30 shadow-sm col-span-1">
+<span class="material-symbols-outlined text-secondary mb-3">cloud_done</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Cloud API</p>
+<p class="font-label-lg text-label-lg text-on-surface mt-1">Operational</p>
+</div>
+</div>
+<!-- Team Section -->
+<section class="space-y-stack-md">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Development Team</h3>
+<div class="space-y-3">
+<!-- Team Member 1 -->
+<div class="flex items-center p-3 bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="A professional studio portrait of a software engineer with a kind, approachable expression, shot in high-key lighting with a clean, medical-office white background. The aesthetic is modern and corporate, using a bright palette consistent with a healthcare technology brand. Sharp focus on eyes, soft depth of field." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDruzTEc8uB0IvzP7p6VpkvLSUxn8UXNRWjNpSNNrZKRJm-ksZwWzUzMEsG2tX0CtAqA9HP8G-DaL4jMzfrb4shys6aA4DzlfZ-L2eBL2orf1g-C8FzdlugkkCYDiwD1kiNJxIeNVq8QKVt7HxVR535-zmaggbm331buv5-iyJxBWaGxsleq2y_70qsiVe_eGGLLrE-Dm9fZyN57evq_VnkQXZZxf_FlIFzL4TRaqykM5-9v-MPhtyIGg"/>
+<div class="ml-4 flex-1">
+<p class="font-label-lg text-label-lg text-on-surface">Alex Rivera</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Full-Stack Lead</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">alternate_email</span>
+</div>
+<!-- Team Member 2 -->
+<div class="flex items-center p-3 bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="A professional close-up of a female engineer specializing in hardware design, holding an electronic circuit board. The lighting is bright and clean, emphasizing a professional healthcare tech environment with cool blue and white tones. The mood is confident, reliable, and innovative, perfectly matching the MedLink IoT brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCtHr-dOPq9Rkqy4RL4HvXdrGYASJFy3fsooJn3ye_Kpi8ISX9qhtuyrqqqQjo3C1Y6TzxL-Hwx3SVbI1vXVQp8D0KfkPA1XEU8-i5gkP-dVa9_yEKRlkN_9d0yDLqSYomxI_tMeoxy4aXzvAaXez2kth6TUg63No0fp9jR7dA5p2HtIzbdHGIYZkui8drqSUwoH9WP_ShbKYMLTdn6bX4h2uMoJOF_8GFA1p8m46gxzOIe7NpR6RcAw"/>
+<div class="ml-4 flex-1">
+<p class="font-label-lg text-label-lg text-on-surface">Sarah Chen</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">IoT Hardware Architect</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">alternate_email</span>
+</div>
+<!-- Team Member 3 -->
+<div class="flex items-center p-3 bg-surface-container rounded-xl hover:bg-surface-container-high transition-colors cursor-pointer group">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="A diverse male designer with glasses looking thoughtfully at a tablet, captured in a brightly lit, minimalist office space. The visual style is crisp and modern, featuring an 8px rhythm and tonal layering of whites and soft grays. The overall mood is one of calm control and high-end professional healthcare design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCGja_dPoI5uZvOqRbIw8O2BBmnn3FVoe_knvbzVI7Hr8W9fPphGNgYsmmvTtzKH8mPaWbSzyrreEpywth0Qkzk_HYYxyjecoiLBk7m_IL9YzHmZNnkNI-xyyOA4vCXY7XX1pwqjLFhuwSFFxJcNw6NMoJyR3oQTucLZnMXXp1fyTG-h_rngAxldP9U_8dlDGVksi7dNtZxI8jZVF3kNVGnw1oRoV7ba644Q9uDmjzGpomI8zF3FnEmSg"/>
+<div class="ml-4 flex-1">
+<p class="font-label-lg text-label-lg text-on-surface">Jordan Smith</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">UI/UX Designer</p>
+</div>
+<span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">alternate_email</span>
+</div>
+</div>
+</section>
+<!-- Hardware Showcase Placeholder -->
+<section class="mt-4">
+<div class="relative w-full h-48 rounded-2xl overflow-hidden shadow-sm">
+<div class="w-full h-full bg-cover bg-center" data-alt="A sleek, modern IoT medical pill dispenser sitting on a clean, white marble countertop next to a glass of water. The device features a minimalist design with soft blue glowing LED accents. The lighting is bright and airy, typical of a high-end medical clinic, creating an atmosphere of reliability and empathetic technology." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAhqxsraLYcXf125TDbGfTWR0GvFG-h3et5EfJRFk0jxd4NfndAOlMn-iCFN2UfKEOhKKhz_JgDgDdzumuVaCAvr6Ejv4L9RgqkJL7cf4DwFpCTWzSLn3yQ1DcHfVGO3qm2FWJzuHzWnki5VgJnmyTBjTtPiZFVsUjqE3wPR83PyWqzjEQtcdP6fh09ZzvWx-8AjEcureRDHoF2SRnja3z6yTh4mxF9RVnCCdT_FLtAHHjDfuHgme7s5w')"></div>
+<div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/60 to-transparent">
+<p class="text-white font-label-lg text-label-lg">SmartDispenser™ Mk-II Integration</p>
+</div>
+</div>
+</section>
+<!-- Legal & Credits -->
+<footer class="pt-8 pb-12 flex flex-col items-center gap-4 text-center">
+<div class="flex gap-4">
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Privacy Policy</a>
+<span class="text-outline-variant">•</span>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Terms of Service</a>
+<span class="text-outline-variant">•</span>
+<a class="font-label-sm text-label-sm text-primary hover:underline" href="#">Open Source</a>
+</div>
+<p class="font-label-sm text-label-sm text-on-surface-variant max-w-xs">
+                © 2024 MedLink Technologies. Built for healthcare resilience. All rights reserved.
+            </p>
+</footer>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-[64px] px-2 pb-safe bg-surface-container dark:bg-surface-container-highest shadow-sm rounded-t-xl z-50">
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-label-sm text-label-sm">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="medication">medication</span>
+<span class="font-label-sm text-label-sm">Medicines</span>
+</div>
+<div class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="medical_services">medical_services</span>
+<span class="font-label-sm text-label-sm">Diagnostics</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary-container text-on-secondary-container rounded-full px-6 py-1 active:scale-90 transition-all duration-200">
+<span class="material-symbols-outlined" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-sm text-label-sm">Settings</span>
+</div>
+</nav>
+<script>
+        // Simple micro-interaction for cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('touchstart', () => {
+                card.style.transform = 'scale(0.98)';
+            });
+            card.addEventListener('touchend', () => {
+                card.style.transform = 'scale(1)';
+            });
+        });
+    </script>
+</body></html>

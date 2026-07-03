@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MedLink IoT Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#2a1700",
+                    "secondary-container": "#7cf994",
+                    "on-tertiary-container": "#ffeedd",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "surface-tint": "#0053db",
+                    "on-primary-fixed": "#00174b",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#263143",
+                    "surface-variant": "#d8e3fb",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f9f9ff",
+                    "primary": "#004ac6",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#7ffc97",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#ecf1ff",
+                    "primary-container": "#2563eb",
+                    "inverse-primary": "#b4c5ff",
+                    "on-secondary-fixed-variant": "#005320",
+                    "on-primary-fixed-variant": "#003ea8",
+                    "background": "#f9f9ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface-variant": "#434655",
+                    "surface": "#f9f9ff",
+                    "tertiary-container": "#996100",
+                    "primary-fixed": "#dbe1ff",
+                    "on-primary-container": "#eeefff",
+                    "outline-variant": "#c3c6d7",
+                    "surface-dim": "#cfdaf2",
+                    "secondary-fixed-dim": "#62df7d",
+                    "error-container": "#ffdad6",
+                    "surface-container-high": "#dee8ff",
+                    "tertiary": "#784b00",
+                    "tertiary-fixed": "#ffddb8",
+                    "on-background": "#111c2d",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "surface-container-low": "#f0f3ff",
+                    "error": "#ba1a1a",
+                    "on-surface": "#111c2d",
+                    "secondary": "#006e2d",
+                    "on-secondary-fixed": "#002109",
+                    "surface-container": "#e7eeff",
+                    "outline": "#737686",
+                    "surface-container-highest": "#d8e3fb",
+                    "on-secondary-container": "#007230"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "touch-target-min": "48px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "gutter": "16px",
+                    "container-padding": "24px",
+                    "stack-lg": "24px",
+                    "unit": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .settings-card {
+            transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease-in-out;
+        }
+        .settings-card:active {
+            transform: scale(0.98);
+        }
+        .custom-toggle:checked ~ .toggle-dot {
+            transform: translateX(100%);
+            background-color: #ffffff;
+        }
+        .custom-toggle:checked ~ .toggle-bg {
+            background-color: #004ac6;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen flex flex-col">
+<!-- TopAppBar from JSON -->
+<header class="w-full top-0 sticky bg-background dark:bg-background z-50">
+<div class="flex justify-between items-center px-gutter py-stack-md w-full">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a friendly medical professional or senior user, wearing clean modern attire. The background is a soft, diffused clinic setting with warm, high-key lighting. The overall style is Corporate Modern, clean, and empathetic, matching a healthcare application's reliable personality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDo4polFgHjJvMXZw0q9ZMozA7Er6MKk9jIYia7e8uCA3yfF2-NALARS2tNvN675F16d5CQwwSGXU3zZZcL3WRHYwFGGf-eP2d3P_cAMntHBZuxkJ_9gm232DxtwF8HVMaeaQQ26EuAGMB_E4vEknAL6f6VeNydjaAZXaxBOMGdv4cSDAdE_6-b3k8cDxZugQOEh_rDCf7ohsoxvL2EuFI-T99SIaD7nFn5EYCc-c7xRRb0F29EHJJvSw"/>
+</div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary-fixed-dim">MedLink IoT</h1>
+</div>
+<button class="material-symbols-outlined text-primary dark:text-primary-fixed-dim p-2 hover:bg-surface-variant transition-colors rounded-full active:scale-95">notifications</button>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="flex-grow px-container-padding pb-32">
+<!-- Hero Section / Status -->
+<section class="mt-stack-lg mb-stack-lg">
+<div class="p-stack-lg rounded-xl bg-white shadow-sm flex items-center justify-between">
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface mb-1">Hub Status</h2>
+<p class="font-label-lg text-label-lg text-secondary flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">check_circle</span> Connected
+                    </p>
+</div>
+<div class="relative w-16 h-16">
+<div class="absolute inset-0 border-4 border-surface-container rounded-full"></div>
+<div class="absolute inset-0 border-4 border-primary rounded-full" style="clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 0 0); transform: rotate(45deg);"></div>
+<div class="absolute inset-0 flex items-center justify-center font-label-sm text-label-sm font-bold text-primary">82%</div>
+</div>
+</div>
+</section>
+<!-- Settings Groups: Bento Layout Inspired -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-lg">
+<!-- Device Section -->
+<section>
+<div class="flex items-center gap-2 mb-stack-sm px-1">
+<span class="material-symbols-outlined text-outline">devices</span>
+<h3 class="font-label-lg text-label-lg uppercase tracking-wider text-outline">Device</h3>
+</div>
+<div class="space-y-stack-sm">
+<!-- WiFi Config -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-surface-container-low transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined">wifi</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">WiFi Config</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Home_Network_5G</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<!-- Firmware Version -->
+<div class="w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">system_update</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">Firmware Version</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">v1.2.0 (Up to date)</div>
+</div>
+</div>
+<span class="px-2 py-1 bg-secondary-container text-on-secondary-container rounded-full text-[10px] font-bold uppercase">Latest</span>
+</div>
+<!-- Restart Device -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-error-container/20 group transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-low text-error flex items-center justify-center">
+<span class="material-symbols-outlined">restart_alt</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface group-hover:text-error transition-colors">Restart Device</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Reboot your IoT hub</div>
+</div>
+</div>
+</button>
+</div>
+</section>
+<!-- App Settings -->
+<section>
+<div class="flex items-center gap-2 mb-stack-sm px-1">
+<span class="material-symbols-outlined text-outline">tune</span>
+<h3 class="font-label-lg text-label-lg uppercase tracking-wider text-outline">App Settings</h3>
+</div>
+<div class="space-y-stack-sm">
+<!-- Dark Mode -->
+<label class="w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm cursor-pointer">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">dark_mode</span>
+</div>
+<div class="font-label-lg text-label-lg text-on-surface">Dark Mode</div>
+</div>
+<div class="relative inline-block w-12 h-6">
+<input class="custom-toggle hidden" onchange="document.documentElement.classList.toggle('dark')" type="checkbox"/>
+<div class="toggle-bg absolute inset-0 bg-surface-container-highest rounded-full transition-colors duration-200"></div>
+<div class="toggle-dot absolute top-1 left-1 w-4 h-4 bg-outline rounded-full transition-transform duration-200"></div>
+</div>
+</label>
+<!-- Notifications -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-surface-container-low transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">notifications_active</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">Notifications</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Reminders, Health Alerts</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+<!-- Sound -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-surface-container-low transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">volume_up</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">Sound</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Chime at 80%</div>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- System Section -->
+<section class="md:col-span-2">
+<div class="flex items-center gap-2 mb-stack-sm px-1">
+<span class="material-symbols-outlined text-outline">info</span>
+<h3 class="font-label-lg text-label-lg uppercase tracking-wider text-outline">System</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-stack-sm">
+<!-- About -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-surface-container-low transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">help</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">About</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Legal, Privacy &amp; Licenses</div>
+</div>
+</div>
+</button>
+<!-- Developer Mode -->
+<button class="settings-card w-full flex items-center justify-between p-stack-lg bg-white rounded-xl shadow-sm hover:bg-surface-container-low transition-colors text-left">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center">
+<span class="material-symbols-outlined">code</span>
+</div>
+<div>
+<div class="font-label-lg text-label-lg text-on-surface">Developer Mode</div>
+<div class="font-label-sm text-label-sm text-on-surface-variant">Advanced IoT Debugging</div>
+</div>
+</div>
+<div class="px-2 py-1 bg-surface-container-low text-outline rounded-full text-[10px] font-bold uppercase">Disabled</div>
+</button>
+</div>
+</section>
+</div>
+<!-- Footer Visual -->
+<div class="mt-stack-lg flex flex-col items-center justify-center opacity-40">
+<span class="material-symbols-outlined text-primary text-4xl mb-2">medical_services</span>
+<p class="font-label-sm text-label-sm">MedLink IoT • Patient Safety First</p>
+</div>
+</main>
+<!-- BottomNavBar from JSON -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center h-[64px] px-2 pb-safe bg-surface-container dark:bg-surface-container-highest shadow-sm rounded-t-xl z-50">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 hover:bg-surface-variant dark:hover:bg-inverse-surface transition-all duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-label-sm text-label-sm mt-1">Home</span>
+</a>
+<!-- Medicines -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 hover:bg-surface-variant dark:hover:bg-inverse-surface transition-all duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined">medication</span>
+<span class="font-label-sm text-label-sm mt-1">Medicines</span>
+</a>
+<!-- Diagnostics -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant dark:text-on-surface-variant px-6 py-1 hover:bg-surface-variant dark:hover:bg-inverse-surface transition-all duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined">medical_services</span>
+<span class="font-label-sm text-label-sm mt-1">Diagnostics</span>
+</a>
+<!-- Settings (Active) -->
+<a class="flex flex-col items-center justify-center bg-secondary-container dark:bg-secondary-container text-on-secondary-container rounded-full px-6 py-1 transition-all duration-200 active:scale-90" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-label-sm text-label-sm mt-1">Settings</span>
+</a>
+</nav>
+<script>
+        // Simple Micro-interaction for buttons
+        document.querySelectorAll('.settings-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const icon = card.querySelector('.material-symbols-outlined:last-child');
+                if (icon && icon.innerText === 'chevron_right') {
+                    icon.style.transform = 'translateX(4px)';
+                    setTimeout(() => icon.style.transform = 'translateX(0)', 200);
+                }
+            });
+        });
+    </script>
+</body></html>

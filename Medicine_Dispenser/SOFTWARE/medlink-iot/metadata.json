@@ -1,0 +1,6 @@
+{
+  "name": "MedLink IoT",
+  "description": "A premium, offline-first clinical-precision Android application for syncing, managing, and diagnosing your Smart Dispenser IoT network.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

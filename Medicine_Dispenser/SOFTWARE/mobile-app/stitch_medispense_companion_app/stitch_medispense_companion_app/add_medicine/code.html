@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>MedLink IoT - Add Medicine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-tertiary-fixed": "#2a1700",
+                    "secondary-container": "#7cf994",
+                    "on-tertiary-container": "#ffeedd",
+                    "primary-fixed-dim": "#b4c5ff",
+                    "surface-tint": "#0053db",
+                    "on-primary-fixed": "#00174b",
+                    "on-error": "#ffffff",
+                    "inverse-surface": "#263143",
+                    "surface-variant": "#d8e3fb",
+                    "on-primary": "#ffffff",
+                    "surface-bright": "#f9f9ff",
+                    "primary": "#004ac6",
+                    "on-tertiary-fixed-variant": "#653e00",
+                    "on-error-container": "#93000a",
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#7ffc97",
+                    "on-tertiary": "#ffffff",
+                    "inverse-on-surface": "#ecf1ff",
+                    "primary-container": "#2563eb",
+                    "inverse-primary": "#b4c5ff",
+                    "on-secondary-fixed-variant": "#005320",
+                    "on-primary-fixed-variant": "#003ea8",
+                    "background": "#f9f9ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-surface-variant": "#434655",
+                    "surface": "#f9f9ff",
+                    "tertiary-container": "#996100",
+                    "primary-fixed": "#dbe1ff",
+                    "on-primary-container": "#eeefff",
+                    "outline-variant": "#c3c6d7",
+                    "surface-dim": "#cfdaf2",
+                    "secondary-fixed-dim": "#62df7d",
+                    "error-container": "#ffdad6",
+                    "surface-container-high": "#dee8ff",
+                    "tertiary": "#784b00",
+                    "tertiary-fixed": "#ffddb8",
+                    "on-background": "#111c2d",
+                    "tertiary-fixed-dim": "#ffb95f",
+                    "surface-container-low": "#f0f3ff",
+                    "error": "#ba1a1a",
+                    "on-surface": "#111c2d",
+                    "secondary": "#006e2d",
+                    "on-secondary-fixed": "#002109",
+                    "surface-container": "#e7eeff",
+                    "outline": "#737686",
+                    "surface-container-highest": "#d8e3fb",
+                    "on-secondary-container": "#007230"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "touch-target-min": "48px",
+                    "stack-md": "16px",
+                    "stack-sm": "8px",
+                    "gutter": "16px",
+                    "container-padding": "24px",
+                    "stack-lg": "24px",
+                    "unit": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Inter"],
+                    "body-md": ["Inter"],
+                    "headline-sm": ["Inter"],
+                    "headline-lg-mobile": ["Inter"],
+                    "label-sm": ["Inter"],
+                    "headline-lg": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "label-lg": ["Inter"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "label-sm": ["12px", {"lineHeight": "16px", "letterSpacing": "0.5px", "fontWeight": "500"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "label-lg": ["14px", {"lineHeight": "20px", "letterSpacing": "0.1px", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9f9ff;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-shadow {
+            box-shadow: 0px 4px 20px rgba(0, 0, 0, 0.04);
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head>
+<body class="bg-background text-on-background min-h-screen pb-32">
+<!-- Top App Bar -->
+<header class="w-full top-0 sticky bg-background z-40">
+<div class="flex justify-between items-center px-gutter py-stack-md w-full">
+<div class="flex items-center gap-4">
+<button class="active:scale-95 transition-transform hover:bg-surface-variant p-2 rounded-full">
+<span class="material-symbols-outlined text-primary">arrow_back</span>
+</button>
+<h1 class="font-headline-sm text-headline-sm text-primary">Add Medicine</h1>
+</div>
+<div class="flex items-center gap-2">
+<button class="active:scale-95 transition-transform hover:bg-surface-variant p-2 rounded-full">
+<span class="material-symbols-outlined text-on-surface-variant">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<main class="px-container-padding max-w-2xl mx-auto space-y-stack-lg mt-stack-md">
+<!-- Form Section: Identity -->
+<section class="bg-surface-container-lowest p-6 rounded-xl custom-shadow space-y-6">
+<div class="space-y-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Medicine Details</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Identify and configure the medication for the smart dispenser.</p>
+</div>
+<div class="space-y-4">
+<!-- Name Field -->
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant" for="med-name">Medicine Name</label>
+<input class="w-full h-touch-target-min px-4 rounded-lg border border-outline focus:border-primary focus:ring-2 focus:ring-primary/20 outline-none transition-all font-body-md text-body-md" id="med-name" placeholder="e.g. Lipitor 20mg" type="text"/>
+</div>
+<!-- Type Selector -->
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant">Medicine Type</label>
+<div class="grid grid-cols-3 gap-3">
+<label class="cursor-pointer group">
+<input checked="" class="hidden peer" name="med-type" type="radio"/>
+<div class="flex flex-col items-center justify-center p-3 rounded-xl border border-outline-variant peer-checked:bg-secondary-container peer-checked:border-secondary-fixed-dim transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-on-secondary-container">tablet</span>
+<span class="font-label-sm text-label-sm mt-1">Tablet</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="med-type" type="radio"/>
+<div class="flex flex-col items-center justify-center p-3 rounded-xl border border-outline-variant peer-checked:bg-secondary-container peer-checked:border-secondary-fixed-dim transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-on-secondary-container">capture</span>
+<span class="font-label-sm text-label-sm mt-1">Capsule</span>
+</div>
+</label>
+<label class="cursor-pointer group">
+<input class="hidden peer" name="med-type" type="radio"/>
+<div class="flex flex-col items-center justify-center p-3 rounded-xl border border-outline-variant peer-checked:bg-secondary-container peer-checked:border-secondary-fixed-dim transition-all group-active:scale-95">
+<span class="material-symbols-outlined text-on-surface-variant peer-checked:text-on-secondary-container">vaccines</span>
+<span class="font-label-sm text-label-sm mt-1">Softgel</span>
+</div>
+</label>
+</div>
+</div>
+<!-- Color Picker & Slot -->
+<div class="grid grid-cols-2 gap-4">
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant">Pill Color</label>
+<div class="flex items-center gap-2 h-touch-target-min">
+<button class="w-8 h-8 rounded-full bg-red-500 ring-2 ring-offset-2 ring-transparent active:ring-primary" type="button"></button>
+<button class="w-8 h-8 rounded-full bg-blue-500 ring-2 ring-offset-2 ring-transparent active:ring-primary" type="button"></button>
+<button class="w-8 h-8 rounded-full bg-yellow-400 ring-2 ring-offset-2 ring-transparent active:ring-primary" type="button"></button>
+<button class="w-8 h-8 rounded-full bg-green-500 ring-2 ring-offset-2 ring-primary" type="button"></button>
+<button class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center" type="button">
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">palette</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant">Dispenser Slot</label>
+<div class="flex gap-2 h-touch-target-min">
+<button class="flex-1 bg-surface-container border border-outline-variant rounded-lg font-label-lg text-label-lg hover:bg-surface-variant transition-colors">1</button>
+<button class="flex-1 bg-primary text-on-primary rounded-lg font-label-lg text-label-lg transition-colors">2</button>
+<button class="flex-1 bg-surface-container border border-outline-variant rounded-lg font-label-lg text-label-lg hover:bg-surface-variant transition-colors">3</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Form Section: Inventory & Dose -->
+<section class="bg-surface-container-lowest p-6 rounded-xl custom-shadow space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant" for="remaining">Pills Remaining</label>
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 rounded-full border border-outline flex items-center justify-center active:bg-surface-variant">-</button>
+<input class="flex-1 text-center h-touch-target-min border border-outline rounded-lg font-headline-sm text-headline-sm" id="remaining" type="number" value="30"/>
+<button class="w-10 h-10 rounded-full border border-outline flex items-center justify-center active:bg-surface-variant">+</button>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant" for="dose">Dose Per Reminder</label>
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 rounded-full border border-outline flex items-center justify-center active:bg-surface-variant">-</button>
+<input class="flex-1 text-center h-touch-target-min border border-outline rounded-lg font-headline-sm text-headline-sm" id="dose" type="number" value="1"/>
+<button class="w-10 h-10 rounded-full border border-outline flex items-center justify-center active:bg-surface-variant">+</button>
+</div>
+<span class="text-right font-label-sm text-label-sm text-outline">Pills per dose</span>
+</div>
+</div>
+</section>
+<!-- Form Section: Schedule -->
+<section class="bg-surface-container-lowest p-6 rounded-xl custom-shadow space-y-6">
+<div class="flex justify-between items-center">
+<div class="space-y-1">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Medication Schedule</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Set the times and frequency.</p>
+</div>
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+</div>
+<!-- Frequency Selector -->
+<div class="flex flex-col gap-2">
+<label class="font-label-lg text-label-lg text-on-surface-variant">Repeat Pattern</label>
+<div class="flex gap-2">
+<button class="px-4 py-2 bg-primary-container text-on-primary-container rounded-full font-label-lg text-label-lg">Daily</button>
+<button class="px-4 py-2 bg-surface-container border border-outline-variant rounded-full font-label-lg text-label-lg">Weekdays</button>
+<button class="px-4 py-2 bg-surface-container border border-outline-variant rounded-full font-label-lg text-label-lg">Custom</button>
+</div>
+</div>
+<!-- Multi-Time Picker -->
+<div class="space-y-3">
+<label class="font-label-lg text-label-lg text-on-surface-variant">Times of Day</label>
+<div class="space-y-2">
+<!-- Time Item 1 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">wb_sunny</span>
+<span class="font-headline-sm text-headline-sm">08:00 AM</span>
+</div>
+<button class="text-error font-label-lg text-label-lg">Remove</button>
+</div>
+<!-- Time Item 2 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">bedtime</span>
+<span class="font-headline-sm text-headline-sm">09:00 PM</span>
+</div>
+<button class="text-error font-label-lg text-label-lg">Remove</button>
+</div>
+</div>
+<button class="w-full h-touch-target-min flex items-center justify-center gap-2 border-2 border-dashed border-primary text-primary font-label-lg text-label-lg rounded-xl mt-4 hover:bg-primary/5 transition-colors">
+<span class="material-symbols-outlined">add</span>
+                    Add Another Time
+                </button>
+</div>
+</section>
+<!-- Visual Context Card -->
+<div class="relative overflow-hidden bg-primary p-6 rounded-2xl text-on-primary">
+
+<div class="relative z-10 flex items-center gap-4">
+<div class="w-12 h-12 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-white">smart_toy</span>
+</div>
+<div>
+<h4 class="font-label-lg text-label-lg">IoT Sync Active</h4>
+<p class="font-body-md text-body-md text-white/80">Changes will be pushed to Dispenser MD-904 instantly upon saving.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer Actions -->
+<footer class="fixed bottom-0 left-0 w-full bg-white border-t border-outline-variant px-container-padding py-stack-md z-50 flex gap-4 md:justify-end">
+<button class="flex-1 md:flex-none md:min-w-[120px] h-touch-target-min font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-variant rounded-full transition-colors">
+            Cancel
+        </button>
+<button class="flex-2 md:flex-none md:min-w-[200px] h-touch-target-min font-label-lg text-label-lg bg-primary text-on-primary rounded-full shadow-lg shadow-primary/20 active:scale-95 transition-all">
+            Save Medicine
+        </button>
+</footer>
+<!-- Bottom Nav Bar (Suppressed because focused task) -->
+<script>
+        // Micro-interaction: Color Picker selection
+        const colorButtons = document.querySelectorAll('.grid-cols-2 button[type="button"]:not(.flex)');
+        colorButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                colorButtons.forEach(b => b.classList.remove('ring-primary'));
+                colorButtons.forEach(b => b.classList.add('ring-transparent'));
+                btn.classList.remove('ring-transparent');
+                btn.classList.add('ring-primary');
+            });
+        });
+
+        // Numeric incrementers logic
+        document.querySelectorAll('.flex.items-center.gap-3').forEach(container => {
+            const input = container.querySelector('input');
+            const [minus, plus] = container.querySelectorAll('button');
+            
+            minus.addEventListener('click', () => {
+                input.value = Math.max(0, parseInt(input.value) - 1);
+            });
+            plus.addEventListener('click', () => {
+                input.value = parseInt(input.value) + 1;
+            });
+        });
+    </script>
+</body></html>
