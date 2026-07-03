@@ -17,4 +17,8 @@ constexpr unsigned long serialBaudRate() {
 constexpr unsigned long mainLoopDelayMs() {
   return 5;
 }
+
+constexpr unsigned long applicationRunningIntervalMs() {
+  return 1000;
+}
 }  // namespace Config
