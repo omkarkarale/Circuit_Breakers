@@ -27,11 +27,13 @@ void App::begin() {
   Logger::info("Diagnostics Ready");
   registry_.begin();
   Logger::info("Module Registry Ready");
+  apiManager_.begin();
   Logger::info("Application Ready");
 }
 
 void App::update() {
   diagnostics_.update();
+  apiManager_.update();
 
   if (state_ == ApplicationState::BOOT) {
     changeState(ApplicationState::INITIALIZING);

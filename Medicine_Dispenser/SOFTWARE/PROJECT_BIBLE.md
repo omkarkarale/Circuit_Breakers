@@ -159,7 +159,7 @@ Complete
 
 ## Current Firmware Version
 
-v0.4.0
+v0.5.0
 
 ---
 
@@ -237,7 +237,7 @@ Status: Complete
 
 ---
 
-Phase 3.2
+## Phase 3.2
 
 Storage Layer
 
@@ -245,13 +245,20 @@ Status: Complete
 
 ---
 
-# Current Phase
-
-Phase 4
+## Phase 4
 
 Wi-Fi Manager
 
-Status: Ready
+Status: Complete
+
+# Current Phase
+
+Phase 5
+
+REST API
+
+Status: In Progress
+
 ---
 
 # Frozen Roadmap
@@ -266,9 +273,9 @@ Status: Ready
 
 ✅ Phase 3.2 Storage
 
-🟢 Phase 4 Wi-Fi Manager
+✅ Phase 4 Wi-Fi Manager
 
-⬜ Phase 5 REST API
+🟢 Phase 5 REST API
 
 ⬜ Phase 6 Android App MVP
 
