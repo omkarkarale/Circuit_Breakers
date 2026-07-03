@@ -152,3 +152,130 @@ Firmware Foundation
 Status:
 
 Complete
+
+---
+
+# Current Progress
+
+## Current Firmware Version
+
+v0.4.0
+
+---
+
+# Completed Phases
+
+## Phase 0
+
+Planning
+
+Status: Complete
+
+---
+
+## Phase 1
+
+Firmware Foundation
+
+Completed:
+
+- PlatformIO project
+- Logger
+- App
+- Diagnostics
+- Config
+- Boot sequence
+
+Status: Complete
+
+---
+
+## Phase 2.1
+
+Application Core
+
+Completed:
+
+- Application lifecycle
+- ApplicationState
+- App state machine
+- Manager base class
+
+Status: Complete
+
+---
+
+## Phase 2.2
+
+Module Registration
+
+Completed:
+
+- ModuleRegistry
+- Fixed-size manager registry
+- Duplicate protection
+- Null protection
+- Manager update loop
+
+Status: Complete
+
+---
+
+## Phase 3.1
+
+Core Data Models
+
+Completed:
+
+- Medicine
+- Schedule
+- DispenseTask
+- LogEntry
+- DispenseResult
+
+Status: Complete
+
+---
+
+Phase 3.2
+
+Storage Layer
+
+Status: Complete
+
+---
+
+# Current Phase
+
+Phase 4
+
+Wi-Fi Manager
+
+Status: Ready
+---
+
+# Frozen Roadmap
+
+✅ Phase 0 Planning
+
+✅ Phase 1 Firmware Foundation
+
+✅ Phase 2 Application Core
+
+✅ Phase 3.1 Data Models
+
+✅ Phase 3.2 Storage
+
+🟢 Phase 4 Wi-Fi Manager
+
+⬜ Phase 5 REST API
+
+⬜ Phase 6 Android App MVP
+
+⬜ Phase 7 Scheduler
+
+⬜ Phase 8 Hardware Drivers
+
+⬜ Phase 9 Integration
+
+⬜ Phase 10 Polish
