@@ -8,16 +8,11 @@
 namespace {
 const char* stateName(ApplicationState state) {
   switch (state) {
-    case ApplicationState::BOOT:
-      return "BOOT";
-    case ApplicationState::INITIALIZING:
-      return "INITIALIZING";
-    case ApplicationState::READY:
-      return "READY";
-    case ApplicationState::ERROR:
-      return "ERROR";
+    case ApplicationState::BOOT:        return "BOOT";
+    case ApplicationState::INITIALIZING: return "INITIALIZING";
+    case ApplicationState::READY:       return "READY";
+    case ApplicationState::ERROR:       return "ERROR";
   }
-
   return "UNKNOWN";
 }
 }  // namespace
@@ -25,9 +20,18 @@ const char* stateName(ApplicationState state) {
 void App::begin() {
   diagnostics_.begin();
   Logger::info("Diagnostics Ready");
+
+  // Register WiFiManager in the update loop
+  registry_.registerManager(&wifiManager_);
   registry_.begin();
   Logger::info("Module Registry Ready");
-  apiManager_.begin();
+
+  // Wire DeviceService with available managers
+  deviceService_.begin(&wifiManager_, &storageManager_);
+  Logger::info("Device Service Ready");
+
+  // Pass DeviceService into ApiManager
+  apiManager_.begin(&deviceService_);
   Logger::info("Application Ready");
 }
 
@@ -56,20 +60,13 @@ void App::update() {
   }
 }
 
-ApplicationState App::getState() const {
-  return state_;
-}
+ApplicationState App::getState() const { return state_; }
 
 void App::changeState(ApplicationState nextState) {
-  char transitionMessage[32];
-  snprintf(transitionMessage,
-           sizeof(transitionMessage),
-           "%s -> %s",
-           stateName(state_),
-           stateName(nextState));
-
+  char buf[32];
+  snprintf(buf, sizeof(buf), "%s -> %s",
+           stateName(state_), stateName(nextState));
   Logger::info("Changing State:");
-  Logger::info(transitionMessage);
-
+  Logger::info(buf);
   state_ = nextState;
 }

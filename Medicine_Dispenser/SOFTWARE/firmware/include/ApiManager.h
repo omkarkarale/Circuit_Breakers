@@ -3,25 +3,68 @@
 #include <WebServer.h>
 
 #include "Config.h"
+#include "DeviceService.h"
 
+/**
+ * ApiManager
+ *
+ * Owns the HTTP server. Registers all /api/v1/* routes and delegates
+ * every request to DeviceService. Does NOT contain business logic.
+ */
 class ApiManager {
  public:
-  void begin();
+  void begin(DeviceService* service);
   void update();
   void start();
   void stop();
   bool isRunning() const;
 
  private:
+  // Route registration
   void configureRoutes();
-  void sendJson(const String& body);
+
+  // CORS & response helpers
+  void addCorsHeaders();
+  void sendJson(int code, const String& body);
+  void sendSuccess(const String& message = "OK");
+  void sendError(int code, const String& error);
+
+  // Utility: extract numeric id from URI path suffix
+  uint8_t extractIdFromUri();
+
+  // GET handlers
   void handleRoot();
   void handleStatus();
-  void handleHealth();
-  void handleDiagnostics();
+  void handleDashboard();
   void handleMedicines();
+  void handleLogs();
+  void handleDiagnostics();
 
-  WebServer server_{Config::DEFAULT_HTTP_PORT};
-  bool routesConfigured_ = false;
-  bool running_ = false;
+  // POST handlers — medicines
+  void handlePostMedicine();
+
+  // PUT handler
+  void handlePutMedicine();
+
+  // DELETE handler
+  void handleDeleteMedicine();
+
+  // POST handlers — dispense / tests
+  void handleDispense();   // POST /api/v1/test/dispenser/{slot}
+  void handleTestMotor();
+  void handleTestAudio();
+  void handleTestRtc();
+  void handleTestIr();
+
+  // POST handlers — device
+  void handleWifiConnect();
+  void handleDeviceReboot();
+
+  // OPTIONS preflight (CORS)
+  void handleOptions();
+
+  WebServer     server_{Config::DEFAULT_HTTP_PORT};
+  DeviceService* service_         = nullptr;
+  bool          routesConfigured_ = false;
+  bool          running_          = false;
 };
