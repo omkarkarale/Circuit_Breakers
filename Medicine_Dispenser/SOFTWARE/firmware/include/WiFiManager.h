@@ -1,0 +1,37 @@
+#pragma once
+
+#include <Arduino.h>
+#include <WiFi.h>
+
+#include "Manager.h"
+
+enum class WiFiManagerState {
+  DISCONNECTED,
+  CONNECTING,
+  CONNECTED,
+  FAILED
+};
+
+class WiFiManager : public Manager {
+ public:
+  void begin() override;
+  void update() override;
+  bool connect(const char* ssid, const char* password);
+  void disconnect();
+  bool isConnected() const;
+  IPAddress getIPAddress() const;
+  const char* getSSID() const;
+  WiFiManagerState getState() const;
+
+ private:
+  static constexpr size_t MAX_SSID_LENGTH = 32;
+  static constexpr size_t MAX_PASSWORD_LENGTH = 64;
+
+  void copyCredentials(const char* ssid, const char* password);
+
+  char ssid_[MAX_SSID_LENGTH + 1] = {};
+  char password_[MAX_PASSWORD_LENGTH + 1] = {};
+  bool credentialsSupplied_ = false;
+  WiFiManagerState state_ = WiFiManagerState::DISCONNECTED;
+  unsigned long connectionStartedMs_ = 0;
+};
