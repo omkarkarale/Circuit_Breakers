@@ -159,7 +159,7 @@ Complete
 
 ## Current Firmware Version
 
-v0.5.0
+v0.6.0
 
 ---
 
@@ -251,11 +251,21 @@ Wi-Fi Manager
 
 Status: Complete
 
-# Current Phase
+---
 
-Phase 5
+## Phase 5
 
 REST API
+
+Status: Complete
+
+---
+
+# Current Phase
+
+Phase 6
+
+Android App MVP
 
 Status: In Progress
 
@@ -275,9 +285,9 @@ Status: In Progress
 
 ✅ Phase 4 Wi-Fi Manager
 
-🟢 Phase 5 REST API
+✅ Phase 5 REST API
 
-⬜ Phase 6 Android App MVP
+🟢 Phase 6 Android App MVP
 
 ⬜ Phase 7 Scheduler
 
