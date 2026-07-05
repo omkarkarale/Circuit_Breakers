@@ -90,7 +90,10 @@ export const FirmwareService = {
       battery: config.battery,
       lastSync: config.lastSync,
       firmware: config.firmware,
-      internalTemp: config.internalTemp
+      internalTemp: config.internalTemp,
+      batterySupported: config.batterySupported,
+      tempSupported: config.tempSupported,
+      epochTime: config.epochTime
     };
   },
 
@@ -203,19 +206,27 @@ export const FirmwareService = {
     return true;
   },
 
-  async connectWiFi(ssid: string, password?: string): Promise<boolean> {
+  async connectWiFi(ssid: string, password?: string): Promise<{ success: boolean; ipAddress: string }> {
     const mode = getMode();
     if (mode === ApiMode.REAL_DEVICE) {
-      const result = await ApiClient.post<{ success: boolean }>('/api/v1/wifi/connect', { ssid, password });
-      return result.success;
+      try {
+        const result = await ApiClient.post<{ success: boolean; ipAddress?: string }>('/api/v1/wifi/connect', { ssid, password });
+        return {
+          success: result.success,
+          ipAddress: result.ipAddress || '0.0.0.0'
+        };
+      } catch (err) {
+        console.error('WiFi connect request failed', err);
+        return { success: false, ipAddress: '0.0.0.0' };
+      }
     } else if (mode === ApiMode.SIMULATOR) {
       const state = VirtualESP32.getgetState();
       state.ssid = ssid;
       VirtualESP32.saveState();
-      return true;
+      return { success: true, ipAddress: '192.168.4.150' };
     }
     console.log(`[Simulator/Mock] Connecting WiFi network: ${ssid}`);
-    return true;
+    return { success: true, ipAddress: '192.168.1.100' };
   },
 
   async rebootDevice(): Promise<boolean> {

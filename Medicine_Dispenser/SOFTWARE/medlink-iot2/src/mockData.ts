@@ -162,5 +162,7 @@ export const INITIAL_CONFIG: DeviceConfig = {
   battery: 85,
   lastSync: '2 mins ago',
   firmware: 'v2.4.1-stable',
-  internalTemp: 34.2
+  internalTemp: 34.2,
+  batterySupported: false,
+  tempSupported: false
 };

@@ -22,7 +22,11 @@ export function mapDeviceStatus(apiStatus: ApiDeviceStatus): DeviceConfig {
     battery: apiStatus.batteryPercentage,
     lastSync: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     firmware: apiStatus.firmwareVersion,
-    internalTemp: apiStatus.temperature
+    internalTemp: apiStatus.temperature,
+    batterySupported: apiStatus.batterySupported !== undefined ? apiStatus.batterySupported : false,
+    tempSupported: apiStatus.tempSupported !== undefined ? apiStatus.tempSupported : false,
+    epochTime: apiStatus.epochTime,
+    ipAddress: apiStatus.ipAddress
   };
 }
 

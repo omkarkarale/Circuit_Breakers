@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import { nativeConfirm } from '../utils/dialogs';
 import {
   Medicine,
@@ -19,6 +19,7 @@ import { FirmwareService } from '../services/FirmwareService';
 import { LocalStorageService } from '../services/LocalStorageService';
 import { INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_HARDWARE, INITIAL_CONFIG } from '../mockData';
 import { VirtualESP32 } from '../services/VirtualESP32';
+import { NotificationService } from '../services/NotificationService';
 
 export interface AppContextType {
   medicines: Medicine[];
@@ -28,6 +29,7 @@ export interface AppContextType {
   settings: Settings;
   dashboard: DashboardResponse | null;
   currentScreen: string;
+  currentClockTime: number;
   selectedMedicineId: string | null;
   isDarkMode: boolean;
   toast: { message: string; type: 'success' | 'info' | 'error' } | null;
@@ -59,7 +61,7 @@ export interface AppContextType {
   resetComponent: (id: string) => Promise<void>;
   runFullDiagnostics: () => Promise<void>;
   restartDevice: () => Promise<void>;
-  saveWiFiConfig: (ssid: string) => Promise<void>;
+  saveWiFiConfig: (ssid: string, password?: string) => Promise<{ success: boolean; ipAddress: string }>;
   clearLogs: () => void;
   
   // Dispense Lifecycle
@@ -72,9 +74,15 @@ export interface AppContextType {
 export const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const getIsDarkMode = (themeName: 'system' | 'light' | 'dark'): boolean => {
+    if (themeName === 'dark') return true;
+    if (themeName === 'light') return false;
+    return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  };
+
   // Load initial settings
   const [settings, setSettings] = useState<Settings>(() => LocalStorageService.getSettings());
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(settings.isDarkMode);
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getIsDarkMode(settings.theme || 'system'));
 
   // App-level state
   const [medicines, setMedicines] = useState<Medicine[]>(() => 
@@ -113,6 +121,44 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     LocalStorageService.saveCachedConfig(config);
   }, [config]);
 
+  const [currentClockTime, setCurrentClockTime] = useState<number>(Date.now());
+  const deviceTimeRef = useRef<{ deviceTime: number; fetchedAt: number } | null>(null);
+
+  // Clock synchronization interval
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const mode = settings.apiMode;
+      if (mode === ApiMode.SIMULATOR) {
+        setCurrentClockTime(VirtualESP32.getgetState().clockTime);
+      } else if (mode === ApiMode.REAL_DEVICE && deviceTimeRef.current) {
+        const elapsed = Date.now() - deviceTimeRef.current.fetchedAt;
+        setCurrentClockTime(deviceTimeRef.current.deviceTime + elapsed);
+      } else {
+        setCurrentClockTime(Date.now());
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [settings.apiMode]);
+
+  // Handle dark mode observer changes
+  useEffect(() => {
+    const themeName = settings.theme || 'system';
+    const updateTheme = () => {
+      setIsDarkMode(getIsDarkMode(themeName));
+    };
+
+    updateTheme();
+
+    if (themeName === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const listener = (e: MediaQueryListEvent) => {
+        setIsDarkMode(e.matches);
+      };
+      mediaQuery.addEventListener('change', listener);
+      return () => mediaQuery.removeEventListener('change', listener);
+    }
+  }, [settings.theme]);
+
   // Handle dark mode DOM changes
   useEffect(() => {
     if (isDarkMode) {
@@ -149,11 +195,21 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         lastSync: status.lastSync,
         firmware: status.firmware,
         internalTemp: status.internalTemp,
+        batterySupported: status.batterySupported,
+        tempSupported: status.tempSupported,
+        epochTime: status.epochTime,
         // Twin metadata fields
         board: (status as any).board,
         uptime: (status as any).uptime,
         heap: (status as any).heap
       }));
+
+      if (status.epochTime) {
+        deviceTimeRef.current = {
+          deviceTime: status.epochTime * 1000,
+          fetchedAt: Date.now()
+        };
+      }
 
       if (isSimOrReal) {
         const remoteMeds = await FirmwareService.getMedicines();
@@ -194,6 +250,137 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   }, [settings.apiMode, refreshTelemetry]);
 
+  const lastProcessedMinute = useRef<string>('');
+  const prevConnectedRef = useRef<boolean>(config.connected);
+  const prevHardwareRef = useRef<string>('');
+  const notifiedLowInventoryRef = useRef<Record<string, boolean>>({});
+
+  // Telemetry notifications
+  useEffect(() => {
+    // 1. Connection status change
+    if (prevConnectedRef.current !== config.connected) {
+      if (!config.connected) {
+        NotificationService.show(
+          'Device Disconnected',
+          'The smart dispenser hub connection went offline.',
+          'deviceDisconnected',
+          settings
+        );
+      }
+      prevConnectedRef.current = config.connected;
+    }
+
+    // 2. Hardware components offline
+    const hwKey = hardware.map(h => `${h.id}:${h.status}`).join(',');
+    if (prevHardwareRef.current && prevHardwareRef.current !== hwKey) {
+      hardware.forEach(h => {
+        if (h.status === 'Offline') {
+          NotificationService.show(
+            'Hardware Fault Detected',
+            `${h.name} has reported an Offline state failure!`,
+            'hardwareFaults',
+            settings
+          );
+        } else if (h.status === 'Warning') {
+          NotificationService.show(
+            'Diagnostics Warning',
+            `${h.name} requires inspection: ${h.description}`,
+            'diagnosticsWarnings',
+            settings
+          );
+        }
+      });
+    }
+    prevHardwareRef.current = hwKey;
+
+    // 3. Low inventory
+    medicines.forEach(med => {
+      if (med.remainingPills < 10) {
+        if (!notifiedLowInventoryRef.current[med.id]) {
+          NotificationService.show(
+            'Low Medication Inventory',
+            `Warning: ${med.name} in Slot #${med.slot} has only ${med.remainingPills} pills remaining.`,
+            'lowInventory',
+            settings
+          );
+          notifiedLowInventoryRef.current[med.id] = true;
+        }
+      } else {
+        notifiedLowInventoryRef.current[med.id] = false; // reset when refilled
+      }
+    });
+  }, [config.connected, hardware, medicines, settings]);
+
+  // Schedule notifications
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date(currentClockTime);
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      const minuteStr = `${hour}:${minute}`;
+
+      if (lastProcessedMinute.current !== minuteStr) {
+        lastProcessedMinute.current = minuteStr;
+
+        medicines.forEach(med => {
+          if (!med.enabled || med.remainingPills <= 0) return;
+          med.schedules.forEach(scheduleStr => {
+            const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+            if (!match) return;
+
+            let sh = parseInt(match[1]);
+            const sm = parseInt(match[2]);
+            const ampm = match[3].toUpperCase();
+            if (ampm === 'PM' && sh < 12) sh += 12;
+            if (ampm === 'AM' && sh === 12) sh = 0;
+
+            // Due now
+            if (hour === sh && minute === sm) {
+              NotificationService.show(
+                'Medication Due Now',
+                `It's time to take ${med.dosePerReminder} pill(s) of ${med.name} from Slot #${med.slot}.`,
+                'dueNow',
+                settings
+              );
+            }
+
+            // Upcoming (10 minutes before)
+            const currentTotalMinutes = hour * 60 + minute;
+            const scheduleTotalMinutes = sh * 60 + sm;
+            const diff = (scheduleTotalMinutes - currentTotalMinutes + 1440) % 1440;
+            if (diff === 10) {
+              NotificationService.show(
+                'Upcoming Medication',
+                `${med.name} in Slot #${med.slot} is due in 10 minutes.`,
+                'upcomingReminders',
+                settings
+              );
+            }
+
+            // Missed (30 minutes past)
+            if (diff === 1410) {
+              const recentLogs = logs.filter(l =>
+                l.medicineName === med.name &&
+                l.status === 'Taken' &&
+                (Date.now() - new Date(l.timestamp).getTime()) < 40 * 60 * 1000
+              );
+              if (recentLogs.length === 0) {
+                NotificationService.show(
+                  'Missed Medication Dose',
+                  `Warning: You missed your scheduled dose of ${med.name} at ${scheduleStr}.`,
+                  'missedDoses',
+                  settings
+                );
+              }
+            }
+          });
+        });
+      }
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(timer);
+  }, [currentClockTime, medicines, settings, logs]);
+
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'info') => {
     setToast({ message, type });
   };
@@ -219,6 +406,21 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const saveMedicine = async (medData: Omit<Medicine, 'id'> & { id?: string }) => {
     try {
       const isReal = settings.apiMode === ApiMode.REAL_DEVICE;
+      
+      // Enforce slot limits
+      if (medData.slot < 1 || medData.slot > 3) {
+        throw new Error('Dispenser contains exactly three slots (1-3).');
+      }
+
+      // Enforce at most one medicine per slot: delete other medicine in same slot
+      const existingInSlot = medicines.find(m => m.slot === medData.slot && m.id !== medData.id);
+      if (existingInSlot) {
+        if (isReal) {
+          await FirmwareService.deleteMedicine(existingInSlot.id);
+        }
+        setMedicines(prev => prev.filter(m => m.id !== existingInSlot.id));
+      }
+
       const targetId = medData.id || `med-${Date.now()}`;
       const medToSave: Medicine = {
         ...medData,
@@ -236,7 +438,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         
         const newLog: Log = {
           id: `log-${Date.now()}`,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(currentClockTime).toISOString(),
           medicineName: medData.name,
           dosageText: `${medData.dosePerReminder} Pill Schedule Adjusted`,
           status: 'Taken',
@@ -250,7 +452,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
         const newLog: Log = {
           id: `log-${Date.now()}`,
-          timestamp: new Date().toISOString(),
+          timestamp: new Date(currentClockTime).toISOString(),
           medicineName: medData.name,
           dosageText: `Slot Assigned: Slot #${medData.slot}`,
           status: 'Taken',
@@ -453,15 +655,27 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const saveWiFiConfig = async (ssidName: string) => {
+  const saveWiFiConfig = async (ssidName: string, passwordVal?: string) => {
     try {
-      const success = await FirmwareService.connectWiFi(ssidName);
-      if (success) {
-        setConfig(prev => ({ ...prev, ssid: ssidName, lastSync: 'Just now' }));
-        showToast(`Smart Dispenser linked to network: ${ssidName}`, 'success');
+      const result = await FirmwareService.connectWiFi(ssidName, passwordVal);
+      if (result.success) {
+        setConfig(prev => ({ 
+          ...prev, 
+          ssid: ssidName, 
+          ipAddress: result.ipAddress,
+          lastSync: 'Just now' 
+        }));
+        if (result.ipAddress && result.ipAddress !== '0.0.0.0') {
+          updateSettings({ esp32Ip: result.ipAddress });
+        }
+        showToast(`Smart Dispenser linked to network: ${ssidName} (IP: ${result.ipAddress})`, 'success');
+        return result;
+      } else {
+        throw new Error('WiFi Connection failed or timed out.');
       }
     } catch (err: any) {
       showToast(err.message || 'WiFi config failed', 'error');
+      throw err;
     }
   };
 
@@ -577,6 +791,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         settings,
         dashboard,
         currentScreen,
+        currentClockTime,
         selectedMedicineId,
         isDarkMode,
         toast,

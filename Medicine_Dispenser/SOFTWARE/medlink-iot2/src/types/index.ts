@@ -48,6 +48,10 @@ export interface DeviceConfig {
   lastSync: string; // relative time or ISO string
   firmware: string;
   internalTemp: number; // in Celsius
+  batterySupported: boolean;
+  tempSupported: boolean;
+  epochTime?: number;
+  ipAddress?: string;
 }
 
 // Application Modes
@@ -61,8 +65,20 @@ export enum ApiMode {
 export interface Settings {
   esp32Ip: string;
   apiMode: ApiMode;
+  theme: 'system' | 'light' | 'dark';
   isDarkMode: boolean;
   isDeveloperMode: boolean;
+  tempThreshold: number;
+  notifications: {
+    upcomingReminders: boolean;
+    dueNow: boolean;
+    missedDoses: boolean;
+    lowInventory: boolean;
+    deviceDisconnected: boolean;
+    wifiDisconnected: boolean;
+    diagnosticsWarnings: boolean;
+    hardwareFaults: boolean;
+  };
 }
 
 // WiFi Configuration payload
@@ -115,6 +131,10 @@ export interface DeviceStatus {
   lastSync: string;
   firmware: string;
   internalTemp: number;
+  batterySupported: boolean;
+  tempSupported: boolean;
+  epochTime?: number;
+  ipAddress?: string;
 }
 
 // ==========================================
@@ -178,6 +198,9 @@ export interface ApiDeviceStatus {
   signalStrength: number;
   temperature: number;
   nextDoseCountdown: number;
+  batterySupported?: boolean;
+  tempSupported?: boolean;
+  epochTime?: number;
 }
 
 export interface ApiDashboardData {
