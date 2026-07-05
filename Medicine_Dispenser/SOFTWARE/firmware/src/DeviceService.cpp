@@ -37,6 +37,9 @@ String DeviceService::buildStatusJson() const {
   json += "\"deviceName\":\"Smart Dispenser Hub\",";
   json += "\"firmwareVersion\":\"1.0.0\",";
   json += "\"uptimeSeconds\":"  + String(up)              + ",";
+  json += "\"batterySupported\":false,";
+  json += "\"tempSupported\":false,";
+  json += "\"epochTime\":"      + String(time(nullptr))   + ",";
   json += "\"batteryPercentage\":85,";
   json += "\"batteryCharging\":false,";
   json += "\"wifiSSID\":\""     + ssid                    + "\",";

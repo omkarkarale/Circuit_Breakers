@@ -47,7 +47,7 @@ bool WiFiManager::connect(const char* ssid, const char* password) {
   connectionStartedMs_ = millis();
   state_ = WiFiManagerState::CONNECTING;
 
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid_, password_);
   Logger::info("WiFi Connecting");
   return true;
