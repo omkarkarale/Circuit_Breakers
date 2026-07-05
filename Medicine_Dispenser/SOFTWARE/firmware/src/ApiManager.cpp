@@ -385,8 +385,34 @@ void ApiManager::handleWifiConnect() {
   if (ssid.length() == 0) { sendError(400, "Missing ssid field"); return; }
 
   service_->connectWifi(ssid, password);
-  String msg = "Connecting to " + ssid + ".";
-  sendSuccess(msg);
+
+  // Wait up to 10 seconds for WiFi connection to complete
+  unsigned long startMs = millis();
+  bool connected = false;
+  while (millis() - startMs < 10000) {
+    delay(500);
+    if (WiFi.status() == WL_CONNECTED) {
+      connected = true;
+      break;
+    }
+  }
+
+  if (connected) {
+    String ipStr = WiFi.localIP().toString();
+    String json = "{";
+    json += "\"success\":true,";
+    json += "\"message\":\"Connected successfully\",";
+    json += "\"ipAddress\":\"" + ipStr + "\"";
+    json += "}";
+    sendJson(200, json);
+  } else {
+    String json = "{";
+    json += "\"success\":false,";
+    json += "\"message\":\"Connection timed out\",";
+    json += "\"ipAddress\":\"0.0.0.0\"";
+    json += "}";
+    sendJson(200, json);
+  }
 }
 
 void ApiManager::handleDeviceReboot() {
