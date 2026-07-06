@@ -2,13 +2,12 @@
 
 void setup() {
   Serial.begin(115200);
-  DigitalPower(5,6);
-  pinMode(7,INPUT);
+  pinMode(8,INPUT);
 }
 
 void loop() {
   // Main loop code here
-  int IR = digitalRead(7);
+  int IR = digitalRead(8);
   if(IR == LOW) {
     Serial.println("IR signal detected");
   } else {

@@ -9,11 +9,11 @@ DFRobotDFPlayerMini player;
 // Common I2C addresses: 0x27 or 0x3F
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 RTC_DS3231 rtc;
-
+bool TakeMeds = false;
 void setup() {
   Serial.begin(115200);
-    Serial3.begin(9600);
-    lcd.init();          // Initialize LCD
+  Serial3.begin(9600);
+   lcd.init();          // Initialize LCD
   lcd.backlight();     // Turn on backlight
   Wire.begin(); // Uses Mega pins 20 and 21
   DigitalPower(5,6);
@@ -32,7 +32,7 @@ void setup() {
   }
 
   // Uncomment once to set the time
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 
 }
 
@@ -48,17 +48,17 @@ void loop() {
   // Serial.print(now.year());
 
   Serial.print(" ");
-  lcd.setCursor(3, 0);
+  lcd.setCursor(4, 0);
 
   lcd.print(now.hour());
   lcd.print(":");
   lcd.print(now.minute());
   lcd.print(":");
   lcd.print(now.second());
-  if (now.hour() == 17 && now.minute() == 12 && (now.second()==0 || now.second()==10)) {
+  if (now.hour() == 15 && now.minute() == 2) {
 
 
-    if (IR == HIGH) {
+    if (IR == HIGH && TakeMeds == false) {
       lcd.setCursor(0, 1);
       lcd.print("Take your Meds!!");
       player.play(5);
@@ -68,9 +68,10 @@ void loop() {
         lcd.setCursor(3, 1);
         lcd.print("Thankyou!!");
         delay(2000);
+        TakeMeds = true;
 
       }
   }
-  delay(500);
+  delay(1000);
 
-}
+} 
