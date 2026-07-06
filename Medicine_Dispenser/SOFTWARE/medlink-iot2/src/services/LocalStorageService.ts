@@ -9,8 +9,20 @@ const CONFIG_KEY = 'medlink_config';
 const DEFAULT_SETTINGS: Settings = {
   esp32Ip: '192.168.4.1',
   apiMode: ApiMode.MOCK,
+  theme: 'system',
   isDarkMode: false,
-  isDeveloperMode: true,
+  isDeveloperMode: false,
+  tempThreshold: 38,
+  notifications: {
+    upcomingReminders: true,
+    dueNow: true,
+    missedDoses: true,
+    lowInventory: true,
+    deviceDisconnected: true,
+    wifiDisconnected: true,
+    diagnosticsWarnings: true,
+    hardwareFaults: true,
+  }
 };
 
 export const LocalStorageService = {

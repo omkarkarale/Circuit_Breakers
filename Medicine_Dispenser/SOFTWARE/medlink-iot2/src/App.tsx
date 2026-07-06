@@ -21,6 +21,7 @@ export default function App() {
     config,
     settings,
     currentScreen,
+    currentClockTime,
     selectedMedicineId,
     isDarkMode,
     toast,
@@ -59,6 +60,8 @@ export default function App() {
             onRefillAll={refillAll}
             onTriggerDispense={triggerDispense}
             onEmergencyDispense={emergencyDispense}
+            currentClockTime={currentClockTime}
+            settings={settings}
           />
         );
       case 'medicines':
@@ -71,6 +74,7 @@ export default function App() {
               if (id) setSelectedMedicineId(id);
             }}
             onToggleEnabled={toggleEnabled}
+            onRefill={refillMedicine}
           />
         );
       case 'diagnostics':
@@ -81,6 +85,9 @@ export default function App() {
             onResetComponent={resetComponent}
             onRunFullDiagnostics={runFullDiagnostics}
             internalTemp={config.internalTemp}
+            config={config}
+            settings={settings}
+            onUpdateSettings={updateSettings}
           />
         );
       case 'settings':
@@ -181,13 +188,8 @@ export default function App() {
       {/* Top Custom App Bar matching specs */}
       <div className="w-full flex justify-between items-center px-6 py-2 bg-[#f9f9ff] dark:bg-slate-900 text-[#111c2d] dark:text-white shrink-0 border-b border-[#cbd5e1]/10">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-full bg-[#dee8ff] border border-blue-500/20 flex items-center justify-center overflow-hidden">
-            <img
-              className="w-full h-full object-cover"
-              alt="Doctor/Caregiver Portrait"
-              referrerPolicy="no-referrer"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuC7enPGJe9NWxWiOJ57VzHOS_R426llmibaCl2OEG6GSxRA1HAXccSKH1bWhCc8jur_TgOAW79FFztKQDYxc5pSPLSvY3SMsCbJywtaFpQTsn40xm2sxXQziKxN0NwzqWJbyhdj2dh1fPItbuLmrQ8HO0szVhOuJRJuqeaDnEiXiHO1m6hQgS2ixsiFwBDqrAkZcAkBBh8pAZG_yXgUGFkzm2xGGbSAybWedhIXR2fmsaPeTXQiOhfdnw"
-            />
+          <div className="w-9 h-9 rounded-full bg-[#dee8ff] dark:bg-slate-800 border border-blue-500/20 flex items-center justify-center overflow-hidden">
+            <span className="material-symbols-outlined text-[#004ac6] dark:text-[#7cf994] text-xl font-bold">medical_services</span>
           </div>
           <h1 className="text-base font-bold text-[#004ac6] dark:text-[#7cf994] font-sans">MedLink IoT</h1>
         </div>

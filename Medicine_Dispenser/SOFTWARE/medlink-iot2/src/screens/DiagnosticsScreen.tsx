@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { HardwareComponent } from '../types';
+import { HardwareComponent, DeviceConfig, Settings } from '../types';
 
 interface DiagnosticsViewProps {
   hardware: HardwareComponent[];
@@ -7,6 +7,9 @@ interface DiagnosticsViewProps {
   onResetComponent: (id: string) => void;
   onRunFullDiagnostics: () => Promise<void>;
   internalTemp: number;
+  config: DeviceConfig;
+  settings: Settings;
+  onUpdateSettings: (settings: Partial<Settings>) => void;
 }
 
 export default function DiagnosticsView({
@@ -14,10 +17,16 @@ export default function DiagnosticsView({
   onTestComponent,
   onResetComponent,
   onRunFullDiagnostics,
-  internalTemp
+  internalTemp,
+  config,
+  settings,
+  onUpdateSettings
 }: DiagnosticsViewProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [currentTestingIndex, setCurrentTestingIndex] = useState<number | null>(null);
+
+  const threshold = settings.tempThreshold || 38;
+  const isTempExceeded = internalTemp > threshold;
 
   const handleRunAll = async () => {
     setIsRunning(true);
@@ -32,19 +41,78 @@ export default function DiagnosticsView({
   };
 
   return (
-    <div className="space-y-6 pt-2">
+    <div className="space-y-6 pt-2 text-[#111c2d] dark:text-white">
       {/* Header Info */}
       <section className="space-y-1">
-        <h2 className="text-xl font-bold text-[#111c2d] tracking-tight">System Diagnostics</h2>
-        <p className="text-xs text-[#737686]">Engineering level hardware health monitor</p>
+        <h2 className="text-xl font-bold tracking-tight">System Diagnostics</h2>
+        <p className="text-xs text-[#737686] dark:text-slate-400">Engineering level hardware health monitor</p>
       </section>
+
+      {/* 1. Internal temperature status card - Show only if supported, and place at the top! */}
+      {config.tempSupported && (
+        <section className={`rounded-2xl p-5 relative overflow-hidden shadow-md border transition-all ${
+          isTempExceeded 
+            ? 'bg-[#ffdad6] border-[#ba1a1a]/30 text-[#93000a]' 
+            : 'bg-[#2563eb] text-white border-transparent'
+        }`}>
+          <div className="relative z-10 space-y-4">
+            <div className="flex justify-between items-start">
+              <div>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider ${isTempExceeded ? 'text-[#93000a]/80' : 'text-white/80'}`}>
+                  Dispenser Internal Core
+                </h4>
+                <div className="flex items-baseline gap-1.5 mt-2">
+                  <span className="text-3xl font-bold font-mono">{internalTemp}°C</span>
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                    isTempExceeded ? 'bg-[#ffdad6] text-[#ba1a1a] border border-[#ba1a1a]/30 animate-pulse' : 'bg-[#7cf994] text-[#007230]'
+                  }`}>
+                    {isTempExceeded ? 'High Temp Warning' : 'Safe Range'}
+                  </span>
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-3xl">
+                {isTempExceeded ? 'thermostat_carbon' : 'device_thermostat'}
+              </span>
+            </div>
+
+            {/* Configurable Threshold Slider */}
+            <div className="pt-2 border-t border-white/10">
+              <div className="flex justify-between text-xs font-bold mb-1">
+                <span>Configure High Temp Threshold</span>
+                <span className="font-mono">{threshold}°C</span>
+              </div>
+              <input
+                type="range"
+                min="30"
+                max="50"
+                value={threshold}
+                onChange={e => onUpdateSettings({ tempThreshold: parseInt(e.target.value) })}
+                className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+              />
+              <div className="flex justify-between text-[9px] opacity-75 mt-0.5">
+                <span>30°C</span>
+                <span>50°C</span>
+              </div>
+            </div>
+
+            {/* Warning Message */}
+            {isTempExceeded && (
+              <div className="bg-[#ba1a1a] text-white p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-bounce">
+                <span className="material-symbols-outlined text-sm">warning</span>
+                <span>CRITICAL: High Temp limit exceeded! Check enclosure fan.</span>
+              </div>
+            )}
+          </div>
+          <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
+        </section>
+      )}
 
       {/* Diagnostics Bento-style Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {hardware.map((hw, idx) => {
           const isTesting = currentTestingIndex === idx;
           let badgeColor = 'bg-[#7cf994] text-[#007230]';
-          let borderColor = 'border-[#c3c6d7]/30';
+          let borderColor = 'border-[#c3c6d7]/30 dark:border-slate-700/50';
           let iconBg = 'bg-[#7cf994]/20 text-[#007230]';
 
           if (hw.status === 'Warning') {
@@ -62,7 +130,6 @@ export default function DiagnosticsView({
             borderColor = 'border-[#004ac6]';
           }
 
-          // Map string icon back to custom materials
           let iconSymbol = 'settings_motion_mode';
           if (hw.name.includes('RTC')) iconSymbol = 'schedule';
           else if (hw.name.includes('IR')) iconSymbol = 'visibility_off';
@@ -74,7 +141,7 @@ export default function DiagnosticsView({
           return (
             <div
               key={hw.id}
-              className={`bg-white rounded-2xl p-4 flex flex-col justify-between min-h-[150px] shadow-sm border transition-all ${borderColor} ${
+              className={`bg-white dark:bg-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[150px] shadow-sm border transition-all ${borderColor} ${
                 isTesting ? 'ring-2 ring-[#004ac6]/20 bg-[#e7eeff]/10 scale-[1.01]' : ''
               }`}
             >
@@ -88,8 +155,8 @@ export default function DiagnosticsView({
               </div>
 
               <div className="mt-4">
-                <h3 className="text-sm font-bold text-[#111c2d] leading-none">{hw.name}</h3>
-                <p className="text-[11px] text-[#737686] mt-1.5">{hw.description}</p>
+                <h3 className="text-sm font-bold leading-none">{hw.name}</h3>
+                <p className="text-[11px] text-[#737686] dark:text-slate-400 mt-1.5">{hw.description}</p>
               </div>
 
               {hw.status === 'Offline' ? (
@@ -106,10 +173,10 @@ export default function DiagnosticsView({
                   type="button"
                   disabled={isRunning}
                   onClick={() => onTestComponent(hw.id)}
-                  className={`mt-3 w-full py-1.5 border font-semibold text-xs rounded-lg active:scale-95 transition-all hover:bg-[#f0f3ff] disabled:opacity-50 ${
+                  className={`mt-3 w-full py-1.5 border font-semibold text-xs rounded-lg active:scale-95 transition-all hover:bg-[#f0f3ff] dark:hover:bg-slate-700 disabled:opacity-50 ${
                     hw.status === 'Warning'
                       ? 'border-[#996100] text-[#996100]'
-                      : 'border-[#004ac6] text-[#004ac6]'
+                      : 'border-[#004ac6] text-[#004ac6] dark:text-[#7cf994] dark:border-[#7cf994]/50'
                   }`}
                 >
                   {isTesting ? 'Testing...' : 'Test Module'}
@@ -122,25 +189,10 @@ export default function DiagnosticsView({
 
       {/* Decorative Divider */}
       <div className="flex items-center gap-3.5 my-6">
-        <div className="h-px bg-[#c3c6d7] flex-grow"></div>
-        <span className="text-[10px] text-[#737686] uppercase tracking-widest font-mono">Hardware Revision V2.4</span>
-        <div className="h-px bg-[#c3c6d7] flex-grow"></div>
+        <div className="h-px bg-[#c3c6d7] dark:bg-slate-700 flex-grow"></div>
+        <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase tracking-widest font-mono">Hardware Revision V2.4</span>
+        <div className="h-px bg-[#c3c6d7] dark:bg-slate-700 flex-grow"></div>
       </div>
-
-      {/* Internal temperature status card */}
-      <section className="bg-[#2563eb] text-white rounded-2xl p-5 relative overflow-hidden shadow-md">
-        <div className="relative z-10">
-          <h4 className="text-xs font-semibold text-white/80 uppercase tracking-wider">Dispenser Internal Core</h4>
-          <div className="flex items-baseline gap-1.5 mt-2">
-            <span className="text-3xl font-bold font-mono">{internalTemp}°C</span>
-            <span className="text-xs bg-[#7cf994] text-[#007230] px-2 py-0.5 rounded-full font-bold">Safe Range</span>
-          </div>
-          <div className="mt-4 w-full bg-white/25 h-1.5 rounded-full overflow-hidden">
-            <div className="bg-[#7cf994] h-full w-[45%] rounded-full shadow-[0_0_8px_rgba(124,249,148,0.8)]"></div>
-          </div>
-        </div>
-        <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/5 rounded-full blur-2xl pointer-events-none"></div>
-      </section>
 
       {/* Large button: Run Full Diagnostic */}
       <footer className="pt-2">

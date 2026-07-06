@@ -343,7 +343,10 @@ export class VirtualESP32Class {
       internalTemp: this.state.internalTemp,
       board: this.state.board,
       uptime: this.state.uptime,
-      heap: this.state.heap
+      heap: this.state.heap,
+      batterySupported: true,
+      tempSupported: true,
+      epochTime: this.state.clockTime
     } as any; // Allow metadata fields
   }
 
