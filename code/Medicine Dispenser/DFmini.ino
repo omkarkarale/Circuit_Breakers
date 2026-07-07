@@ -4,11 +4,11 @@ DFRobotDFPlayerMini player;
 
 void setup() {
   Serial.begin(115200);
-  Serial3.begin(9600);
+  Serial2.begin(9600);
 
   Serial.println("Checking DFPlayer...");
 
-  if (!player.begin(Serial3)) {
+  if (!player.begin(Serial2)) {
     Serial.println("DFPlayer NOT detected!");
     while (1);
   }
