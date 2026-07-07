@@ -20,6 +20,7 @@ import { LocalStorageService } from '../services/LocalStorageService';
 import { INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_HARDWARE, INITIAL_CONFIG } from '../mockData';
 import { VirtualESP32 } from '../services/VirtualESP32';
 import { NotificationService } from '../services/NotificationService';
+import { triggerHaptic } from '../utils/haptics';
 
 export interface AppContextType {
   medicines: Medicine[];
@@ -83,6 +84,17 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   // Load initial settings
   const [settings, setSettings] = useState<Settings>(() => LocalStorageService.getSettings());
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => getIsDarkMode(settings.theme || 'system'));
+
+  // Listen to browser prefers-color-scheme changes dynamically if theme is set to 'system'
+  useEffect(() => {
+    if (settings.theme !== 'system') return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const listener = (e: MediaQueryListEvent) => {
+      setIsDarkMode(e.matches);
+    };
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [settings.theme]);
 
   // App-level state
   const [medicines, setMedicines] = useState<Medicine[]>(() => 
@@ -389,14 +401,17 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     const updated = { ...settings, ...newSettings };
     setSettings(updated);
     LocalStorageService.saveSettings(updated);
-    if (newSettings.isDarkMode !== undefined) {
+    if (newSettings.theme !== undefined) {
+      setIsDarkMode(getIsDarkMode(newSettings.theme));
+    } else if (newSettings.isDarkMode !== undefined) {
       setIsDarkMode(newSettings.isDarkMode);
     }
     showToast('Settings saved successfully.', 'success');
   };
 
   const toggleDarkMode = () => {
-    updateSettings({ isDarkMode: !isDarkMode });
+    const nextTheme = isDarkMode ? 'light' : 'dark';
+    updateSettings({ theme: nextTheme });
   };
 
   const setCurrentScreen = (screen: string) => {
@@ -405,7 +420,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const saveMedicine = async (medData: Omit<Medicine, 'id'> & { id?: string }) => {
     try {
-      const isReal = settings.apiMode === ApiMode.REAL_DEVICE;
+      const isApi = settings.apiMode === ApiMode.REAL_DEVICE || settings.apiMode === ApiMode.SIMULATOR;
       
       // Enforce slot limits
       if (medData.slot < 1 || medData.slot > 3) {
@@ -415,7 +430,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       // Enforce at most one medicine per slot: delete other medicine in same slot
       const existingInSlot = medicines.find(m => m.slot === medData.slot && m.id !== medData.id);
       if (existingInSlot) {
-        if (isReal) {
+        if (isApi) {
           await FirmwareService.deleteMedicine(existingInSlot.id);
         }
         setMedicines(prev => prev.filter(m => m.id !== existingInSlot.id));
@@ -427,7 +442,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         id: targetId
       };
 
-      if (isReal) {
+      if (isApi) {
         await FirmwareService.saveMedicine(medToSave);
       }
 
@@ -442,7 +457,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           medicineName: medData.name,
           dosageText: `${medData.dosePerReminder} Pill Schedule Adjusted`,
           status: 'Taken',
-          detailText: `Medication config changed. Dispenser Slot #${medData.slot} updated.`
+          detailText: `Medication config changed. Dispenser Slot #${medData.slot} updated.`,
+          category: 'Refilled'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${medData.name} updated successfully.`, 'success');
@@ -456,11 +472,13 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           medicineName: medData.name,
           dosageText: `Slot Assigned: Slot #${medData.slot}`,
           status: 'Taken',
-          detailText: `New reminder added: ${medData.name} scheduled for ${medData.schedules.join(', ')}.`
+          detailText: `New reminder added: ${medData.name} scheduled for ${medData.schedules.join(', ')}.`,
+          category: 'Refilled'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${medData.name} added to Slot #${medData.slot}.`, 'success');
       }
+      triggerHaptic('medium');
       setCurrentScreen('medicines');
       refreshTelemetry();
     } catch (err: any) {
@@ -470,7 +488,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const deleteMedicine = async (id: string) => {
     try {
-      if (settings.apiMode === ApiMode.REAL_DEVICE) {
+      const isApi = settings.apiMode === ApiMode.REAL_DEVICE || settings.apiMode === ApiMode.SIMULATOR;
+      if (isApi) {
         await FirmwareService.deleteMedicine(id);
       }
 
@@ -483,11 +502,13 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           medicineName: target.name,
           dosageText: 'Schedule Deleted',
           status: 'Cancelled',
-          detailText: `Dispenser Slot #${target.slot} unassigned. Medication schedule removed.`
+          detailText: `Dispenser Slot #${target.slot} unassigned. Medication schedule removed.`,
+          category: 'Refilled'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${target.name} schedule removed.`);
       }
+      triggerHaptic('medium');
       setCurrentScreen('medicines');
       refreshTelemetry();
     } catch (err: any) {
@@ -497,16 +518,23 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const toggleEnabled = async (id: string, enabled: boolean) => {
     try {
-      setMedicines(prev => prev.map(m => (m.id === id ? { ...m, enabled } : m)));
+      const isApi = settings.apiMode === ApiMode.REAL_DEVICE || settings.apiMode === ApiMode.SIMULATOR;
       const target = medicines.find(m => m.id === id);
       if (target) {
+        const updated = { ...target, enabled };
+        if (isApi) {
+          await FirmwareService.saveMedicine(updated);
+        }
+        setMedicines(prev => prev.map(m => (m.id === id ? updated : m)));
+        
         const newLog: Log = {
           id: `log-${Date.now()}`,
           timestamp: new Date().toISOString(),
           medicineName: target.name,
           dosageText: enabled ? 'Reminders Enabled' : 'Reminders Silenced',
           status: 'Cancelled',
-          detailText: `Dispenser schedule for ${target.name} has been ${enabled ? 'reactivated' : 'temporarily paused'}.`
+          detailText: `Dispenser schedule for ${target.name} has been ${enabled ? 'reactivated' : 'temporarily paused'}.`,
+          category: 'Diagnostics'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${target.name} ${enabled ? 'enabled' : 'disabled'}.`);
@@ -519,23 +547,31 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const refillMedicine = async (id: string) => {
     try {
-      setMedicines(prev =>
-        prev.map(m => (m.id === id ? { ...m, remainingPills: m.maxPills } : m))
-      );
+      const isApi = settings.apiMode === ApiMode.REAL_DEVICE || settings.apiMode === ApiMode.SIMULATOR;
       const target = medicines.find(m => m.id === id);
       if (target) {
+        const updated = { ...target, remainingPills: target.maxPills };
+        if (isApi) {
+          await FirmwareService.saveMedicine(updated);
+        }
+        setMedicines(prev =>
+          prev.map(m => (m.id === id ? updated : m))
+        );
+        
         const newLog: Log = {
           id: `log-${Date.now()}`,
           timestamp: new Date().toISOString(),
           medicineName: target.name,
           dosageText: `Refilled to ${target.maxPills} Pills`,
           status: 'Taken',
-          detailText: `Dispenser cartridge Slot #${target.slot} loaded with ${target.maxPills} fresh tablets.`
+          detailText: `Dispenser cartridge Slot #${target.slot} loaded with ${target.maxPills} fresh tablets.`,
+          category: 'Refilled'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${target.name} inventory replenished!`, 'success');
+        triggerHaptic('light');
+        refreshTelemetry();
       }
-      refreshTelemetry();
     } catch (err: any) {
       showToast(err.message || 'Error refilling medicine', 'error');
     }
@@ -543,17 +579,30 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const refillAll = async () => {
     try {
-      setMedicines(prev => prev.map(m => ({ ...m, remainingPills: m.maxPills })));
+      const isApi = settings.apiMode === ApiMode.REAL_DEVICE || settings.apiMode === ApiMode.SIMULATOR;
+      const updatedMeds = await Promise.all(
+        medicines.map(async m => {
+          const updated = { ...m, remainingPills: m.maxPills };
+          if (isApi) {
+            await FirmwareService.saveMedicine(updated);
+          }
+          return updated;
+        })
+      );
+      setMedicines(updatedMeds);
+      
       const newLog: Log = {
         id: `log-${Date.now()}`,
         timestamp: new Date().toISOString(),
         medicineName: 'All Medications',
         dosageText: 'System Inventory Refilled',
         status: 'Taken',
-        detailText: 'Full hardware replenishment executed. All dispenser slots loaded to capacity.'
+        detailText: 'Full hardware replenishment executed. All dispenser slots loaded to capacity.',
+        category: 'Refilled'
       };
       setLogs(prev => [newLog, ...prev]);
       showToast('All medications refilled to capacity.', 'success');
+      triggerHaptic('medium');
       refreshTelemetry();
     } catch (err: any) {
       showToast(err.message || 'Error refilling all medicines', 'error');
@@ -563,7 +612,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const testComponent = async (id: string) => {
     try {
       const comp = hardware.find(h => h.id === id);
-      const success = await FirmwareService.runMotorTest(comp ? 1 : 1); // fallback
+      const success = await FirmwareService.runMotorTest(comp ? 1 : 1);
       if (success) {
         setHardware(prev =>
           prev.map(h => (h.id === id ? { ...h, status: 'Working' } : h))
@@ -575,10 +624,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             medicineName: 'Hardware Diagnostic',
             dosageText: `${comp.name} Test`,
             status: 'Taken',
-            detailText: `Manual actuator test command executed for ${comp.name}. Diagnostic returned OK.`
+            detailText: `Actuator test command executed for ${comp.name}. Diagnostic returned OK.`,
+            category: 'Diagnostics'
           };
           setLogs(prev => [newLog, ...prev]);
           showToast(`${comp.name} test returned OK!`, 'success');
+          triggerHaptic('light');
         }
       }
     } catch (err: any) {
@@ -599,10 +650,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           medicineName: 'Hardware Reset',
           dosageText: `${comp.name} Reboot`,
           status: 'Taken',
-          detailText: `Controller reset signal pushed to ${comp.name}. Communication link recovered.`
+          detailText: `Controller reset signal pushed to ${comp.name}. Communication link recovered.`,
+          category: 'Diagnostics'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast(`${comp.name} link recovered!`, 'success');
+        triggerHaptic('medium');
       }
     } catch (err: any) {
       showToast(err.message || 'Component reset failed', 'error');
@@ -620,10 +673,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         medicineName: 'Full Diagnostic Suite',
         dosageText: 'Chassis Check Completed',
         status: 'Taken',
-        detailText: 'Full hardware check completed. Stepper motors, OLED controllers, and sensors verified OK.'
+        detailText: 'Full hardware check completed. Stepper motors, OLED controllers, and sensors verified OK.',
+        category: 'Diagnostics'
       };
       setLogs(prev => [newLog, ...prev]);
       showToast('All hardware systems running nominally!', 'success');
+      triggerHaptic('medium');
     } catch (err: any) {
       showToast(err.message || 'Diagnostics failed', 'error');
     }
@@ -644,10 +699,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
           medicineName: 'Hub System',
           dosageText: 'ESP32 Rebooted',
           status: 'Taken',
-          detailText: 'Physical smart hub system completed restart sequence. Synchronized with AWS cloud node.'
+          detailText: 'Physical smart hub system completed restart sequence. Synchronized with AWS cloud node.',
+          category: 'Diagnostics'
         };
         setLogs(prev => [newLog, ...prev]);
         showToast('Dispenser Hub online. Telemetry recovered.', 'success');
+        triggerHaptic('heavy');
         refreshTelemetry();
       }, 2500);
     } catch (err: any) {
@@ -668,7 +725,19 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         if (result.ipAddress && result.ipAddress !== '0.0.0.0') {
           updateSettings({ esp32Ip: result.ipAddress });
         }
+        
+        const newLog: Log = {
+          id: `log-${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          medicineName: 'WiFi Network',
+          dosageText: 'SSID Connected',
+          status: 'Taken',
+          detailText: `Dispenser associated with SSID network "${ssidName}". IP resolved to ${result.ipAddress}.`,
+          category: 'WiFi'
+        };
+        setLogs(prev => [newLog, ...prev]);
         showToast(`Smart Dispenser linked to network: ${ssidName} (IP: ${result.ipAddress})`, 'success');
+        triggerHaptic('heavy');
         return result;
       } else {
         throw new Error('WiFi Connection failed or timed out.');
@@ -697,6 +766,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         medId: med.id
       });
       showToast(`IoT Dispense initiated: Slot #${med.slot} rotating...`, 'info');
+      triggerHaptic('light');
     } catch (err: any) {
       showToast(err.message || 'Dispensing failed', 'error');
     }
@@ -719,11 +789,13 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       medicineName: dispensingState.medicineName,
       dosageText: `Slot #${dispensingState.slot} • ${dispensingState.pillCount} Pill(s) Taken`,
       status: 'Taken',
-      detailText: `Dispensed successfully from SmartBox Slot A${dispensingState.slot}. Daily streak continues!`
+      detailText: `Dispensed successfully from SmartBox Slot A${dispensingState.slot}. Daily streak continues!`,
+      category: 'Dispensed'
     };
     setLogs(prev => [newLog, ...prev]);
     setDispensingState(null);
     showToast('Medication taken! Streak & Adherence logs updated.', 'success');
+    triggerHaptic('medium');
     refreshTelemetry();
   };
 
@@ -736,7 +808,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       medicineName: dispensingState.medicineName,
       dosageText: `Slot #${dispensingState.slot} • Skipped`,
       status: 'Cancelled',
-      detailText: 'Dispense sequence cancelled by the companion mobile application.'
+      detailText: 'Dispense sequence cancelled by the companion mobile application.',
+      category: 'Dispensed'
     };
     setLogs(prev => [newLog, ...prev]);
     setDispensingState(null);
@@ -769,10 +842,12 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         medicineName: 'Emergency Dispense',
         dosageText: 'Caregiver Manual Override',
         status: 'Taken',
-        detailText: `Emergency override button pressed on mobile. 1 Pill dispensed from Slot #${med.slot}.`
+        detailText: `Emergency override button pressed on mobile. 1 Pill dispensed from Slot #${med.slot}.`,
+        category: 'Dispensed'
       };
       setLogs(prev => [newLog, ...prev]);
       showToast('EMERGENCY COMMAND: Dispensing pill immediately!', 'success');
+      triggerHaptic('heavy');
     }
   };
 

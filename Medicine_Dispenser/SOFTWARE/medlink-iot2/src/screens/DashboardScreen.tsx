@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Medicine, Log, DeviceConfig, Settings } from '../types';
+import React from 'react';
+import { Medicine, Log, Settings } from '../types';
 
 interface DashboardViewProps {
   medicines: Medicine[];
   logs: Log[];
-  config: DeviceConfig;
   onNavigate: (screen: string, selectedId?: string) => void;
   onRefillAll: () => void;
   onTriggerDispense: (med: Medicine) => void;
@@ -85,11 +84,8 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
 export default function DashboardView({
   medicines,
   logs,
-  config,
   onNavigate,
   onRefillAll,
-  onTriggerDispense,
-  onEmergencyDispense,
   currentClockTime,
   settings
 }: DashboardViewProps) {
@@ -110,7 +106,7 @@ export default function DashboardView({
   // Audited Adherence Calculation (Real logs and schedules)
   const todayString = new Date(currentClockTime).toDateString();
   const todayLogs = logs.filter(l => new Date(l.timestamp).toDateString() === todayString);
-  const completedDosesToday = todayLogs.filter(l => l.status === 'Taken').length;
+  const completedDosesToday = todayLogs.filter(l => l.status === 'Taken' && l.category !== 'Refilled').length;
   
   const totalScheduledToday = medicines.reduce((acc, curr) => {
     if (!curr.enabled) return acc;
@@ -121,46 +117,61 @@ export default function DashboardView({
     ? Math.round((completedDosesToday / totalScheduledToday) * 100)
     : 100; // default to 100 if no active schedules are set
 
+  // Generate today's schedule list
+  const todaySchedules: { timeStr: string; timeValue: number; medName: string; status: 'Taken' | 'Missed' | 'Pending'; color: string; slot: number }[] = [];
+  const now = new Date(currentClockTime);
+  const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+
+  medicines.filter(m => m.enabled).forEach(med => {
+    med.schedules.forEach(scheduleStr => {
+      const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+      if (!match) return;
+      let hours = parseInt(match[1]);
+      const minutes = parseInt(match[2]);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) hours += 12;
+      if (ampm === 'AM' && hours === 12) hours = 0;
+      const scheduleTotalMinutes = hours * 60 + minutes;
+
+      const takenToday = logs.some(l => {
+        if (l.medicineName !== med.name || l.status !== 'Taken') return false;
+        const logDate = new Date(l.timestamp);
+        if (logDate.toDateString() !== now.toDateString()) return false;
+        const logTotalMinutes = logDate.getHours() * 60 + logDate.getMinutes();
+        return Math.abs(logTotalMinutes - scheduleTotalMinutes) < 60;
+      });
+
+      let status: 'Taken' | 'Missed' | 'Pending' = 'Pending';
+      if (takenToday) {
+        status = 'Taken';
+      } else if (currentTotalMinutes > scheduleTotalMinutes + 30) {
+        status = 'Missed';
+      }
+
+      todaySchedules.push({
+        timeStr: scheduleStr,
+        timeValue: scheduleTotalMinutes,
+        medName: med.name,
+        status,
+        color: med.color,
+        slot: med.slot
+      });
+    });
+  });
+
+  // Sort today's schedules by time
+  todaySchedules.sort((a, b) => a.timeValue - b.timeValue);
+
   return (
-    <div className="space-y-6 text-[#111c2d] dark:text-white">
-      {/* Device Status Card */}
-      <section className="bg-white dark:bg-slate-800 border border-[#c3c6d7] dark:border-slate-700/50 shadow-sm rounded-2xl p-4 flex items-center justify-between transition-all hover:shadow-md">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${config.connected ? 'bg-[#7cf994] text-[#007230]' : 'bg-[#ffdad6] text-[#ba1a1a]'}`}>
-            <span className="material-symbols-outlined text-2xl">{config.connected ? 'wifi' : 'wifi_off'}</span>
-          </div>
-          <div>
-            <h3 className="text-base font-semibold">
-              {config.connected ? 'Dispenser Connected' : 'Dispenser Offline'}
-            </h3>
-            <p className="text-xs text-[#434655] dark:text-slate-400">
-              SSID: {config.ssid || '--'} • IP: {config.ipAddress || settings.esp32Ip || 'Unavailable'}
-            </p>
-          </div>
-        </div>
-
-        {/* Battery section - show only when supported */}
-        {config.batterySupported && (
-          <div className="flex items-center gap-3">
-            <div className="text-right">
-              <div className="flex items-center gap-1 text-[#006e2d] dark:text-[#7cf994] font-bold text-sm">
-                <span className="material-symbols-outlined text-sm">battery_charging_80</span>
-                <span>{config.battery}%</span>
-              </div>
-              <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase tracking-wider block">Battery</span>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Next Dose Card (Hero Card) */}
+    <div className="space-y-6 text-light dark:text-white">
+      {/* Next Dose Card (Hero Card with Glass Overlays) */}
       {nextDoseEvent ? (
-        <section className="bg-gradient-to-br from-[#0053db] to-[#2563eb] text-white rounded-2xl p-6 relative overflow-hidden shadow-lg transition-transform hover:scale-[1.01]">
+        <section className="bg-gradient-to-br from-accent/95 to-accent-hover/90 dark:from-accent/70 dark:to-accent-hover/60 border border-white/20 dark:border-white/10 text-white rounded-sm p-6 relative overflow-hidden shadow-lg">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8 blur-lg"></div>
 
           <div className="relative z-10">
-            <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">
+            <span className="text-xs font-semibold bg-white/20 px-3 py-1 rounded-sm backdrop-blur-sm border border-white/10">
               Next Scheduled Dose
             </span>
             
@@ -172,9 +183,9 @@ export default function DashboardView({
             </div>
 
             {/* Medicines List at this time */}
-            <div className="mt-3 space-y-2.5">
+            <div className="mt-3 space-y-2">
               {nextDoseEvent.items.map(item => (
-                <div key={item.medicine.id} className="flex justify-between items-center bg-white/10 px-3.5 py-2.5 rounded-xl border border-white/5 backdrop-blur-xs">
+                <div key={item.medicine.id} className="flex justify-between items-center bg-white/10 px-3.5 py-2.5 rounded-sm border border-white/5 backdrop-blur-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.medicine.color }}></span>
                     <span className="text-sm font-semibold">{item.medicine.name}</span>
@@ -196,26 +207,60 @@ export default function DashboardView({
                 {getCountdownString()}
               </p>
             </div>
-            
-            {/* Take Now button triggers dispense for the first next medication */}
-            <button
-              onClick={() => onTriggerDispense(nextDoseEvent.items[0].medicine)}
-              className="bg-white text-[#004ac6] hover:bg-[#eeefff] transition-all rounded-full px-5 py-2.5 text-xs font-bold shadow-md hover:shadow-lg active:scale-95 flex items-center gap-1.5"
-            >
-              <span>Dispense Next</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
           </div>
         </section>
       ) : (
-        <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl text-center border border-[#c3c6d7] dark:border-slate-700/50">
-          <span className="material-symbols-outlined text-4xl text-[#737686]">medication</span>
-          <p className="text-[#434655] dark:text-slate-400 mt-2 font-medium">No active medicine schedules.</p>
+        <div className="card-glass p-6 text-center">
+          <span className="material-symbols-outlined text-4xl text-muted">medication</span>
+          <p className="text-muted dark:text-slate-400 mt-2 font-medium">No active medicine schedules.</p>
         </div>
       )}
 
-      {/* Today's Progress Card */}
-      <section className="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-[#c3c6d7] dark:border-slate-700/50 flex items-center justify-around gap-4">
+      {/* Today's Schedule Panel */}
+      <section className="card-glass p-5 space-y-3.5">
+        <div className="flex justify-between items-center">
+          <h3 className="text-sm font-bold tracking-tight">Today's Schedule</h3>
+          <span className="text-[10px] text-muted font-bold font-mono">
+            {todaySchedules.filter(s => s.status === 'Taken').length}/{todaySchedules.length} Done
+          </span>
+        </div>
+        <div className="space-y-2">
+          {todaySchedules.map((sched, idx) => (
+            <div key={idx} className="flex justify-between items-center p-2.5 rounded-sm bg-primary/45 dark:bg-slate-900/35 border border-border-custom text-xs">
+              <div className="flex items-center gap-3">
+                <span className="font-mono font-bold text-muted w-14">{sched.timeStr}</span>
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sched.color }}></span>
+                <span className="font-semibold text-light dark:text-white">{sched.medName}</span>
+                <span className="text-[9px] text-muted dark:text-slate-500 font-medium">Slot {sched.slot}</span>
+              </div>
+              <div>
+                {sched.status === 'Taken' ? (
+                  <span className="text-success-custom dark:text-[#7cf994] font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">check_circle</span>
+                    <span>Taken</span>
+                  </span>
+                ) : sched.status === 'Missed' ? (
+                  <span className="text-error-custom dark:text-red-400 font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>Missed</span>
+                  </span>
+                ) : (
+                  <span className="text-muted font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-sm">schedule</span>
+                    <span>Pending</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+          {todaySchedules.length === 0 && (
+            <p className="text-xs text-center text-muted py-2 font-medium">No schedules active today.</p>
+          )}
+        </div>
+      </section>
+
+      {/* Daily Adherence */}
+      <section className="card-glass p-5 flex items-center justify-around gap-4">
         <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
             <circle
@@ -223,16 +268,16 @@ export default function DashboardView({
               cy="18"
               r="15.915"
               fill="none"
-              stroke="#e7eeff"
+              stroke="rgba(15, 118, 110, 0.1)"
               strokeWidth="3.2"
-              className="dark:stroke-slate-700"
+              className="dark:stroke-slate-800/80"
             />
             <circle
               cx="18"
               cy="18"
               r="15.915"
               fill="none"
-              stroke="#004ac6"
+              stroke="var(--color-accent)"
               strokeWidth="3.2"
               strokeDasharray={`${progressPercent} 100`}
               strokeLinecap="round"
@@ -240,20 +285,20 @@ export default function DashboardView({
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold text-[#004ac6] dark:text-[#7cf994] font-mono leading-none">
+            <span className="text-xl font-bold text-accent dark:text-[#7cf994] font-mono leading-none">
               {completedDosesToday}/{totalScheduledToday}
             </span>
-            <span className="text-[10px] text-[#737686] dark:text-slate-400 font-medium mt-0.5">Doses</span>
+            <span className="text-[10px] text-muted dark:text-slate-400 font-medium mt-0.5">Doses</span>
           </div>
         </div>
-        <div className="flex-1">
+        <div className="flex-grow">
           <h4 className="text-base font-bold">Daily Adherence</h4>
-          <p className="text-xs text-[#434655] dark:text-slate-400 mt-1">
+          <p className="text-xs text-muted dark:text-slate-400 mt-1.5 leading-relaxed">
             {progressPercent >= 80 
               ? "Excellent adherence! Dispense logs are verified and safe." 
               : "Keep up with your schedules to ensure medication compliance."}
           </p>
-          <div className="mt-2 text-[10px] font-semibold text-[#004ac6] dark:text-[#002109] bg-[#e7eeff] dark:bg-[#7cf994] inline-block px-2.5 py-0.5 rounded-full">
+          <div className="mt-2.5 text-[10px] font-bold text-accent dark:text-[#7cf994] bg-accent-light dark:bg-slate-800/80 border border-accent/15 px-2.5 py-0.5 rounded-sm inline-block">
             {progressPercent}% Correct
           </div>
         </div>
@@ -265,12 +310,12 @@ export default function DashboardView({
           <h3 className="text-base font-bold">Medicine Inventory</h3>
           <button
             onClick={onRefillAll}
-            className="text-xs font-bold text-[#004ac6] dark:text-[#7cf994] hover:underline"
+            className="text-xs font-bold text-accent dark:text-[#7cf994] hover:underline cursor-pointer"
           >
             Refill All
           </button>
         </div>
-        <div className="grid grid-cols-1 gap-2.5">
+        <div className="grid grid-cols-1 gap-3">
           {medicines.map(med => {
             const isLow = med.remainingPills < 10;
             const remainingPercent = Math.min(100, Math.round((med.remainingPills / med.maxPills) * 100));
@@ -278,8 +323,8 @@ export default function DashboardView({
             return (
               <div
                 key={med.id}
-                onClick={() => onNavigate('details', med.id)}
-                className="bg-white dark:bg-slate-800 p-3.5 rounded-2xl shadow-sm border border-[#c3c6d7] dark:border-slate-700/50 hover:shadow transition-all cursor-pointer flex flex-col gap-2.5"
+                onClick={() => onNavigate('add-edit', 'slot-' + med.slot)}
+                className="card-glass p-3.5 cursor-pointer flex flex-col gap-2.5"
               >
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
@@ -288,16 +333,16 @@ export default function DashboardView({
                       style={{ backgroundColor: med.color }}
                     ></span>
                     <span className="text-sm font-semibold">{med.name}</span>
-                    <span className="text-[10px] text-[#737686] dark:text-slate-400">Slot {med.slot}</span>
+                    <span className="text-[10px] text-muted dark:text-slate-450">Slot {med.slot}</span>
                   </div>
-                  <span className={`text-xs font-bold font-mono ${isLow ? 'text-[#ba1a1a] dark:text-red-400' : 'text-[#006e2d] dark:text-green-400'}`}>
+                  <span className={`text-xs font-bold font-mono ${isLow ? 'text-error-custom dark:text-red-400' : 'text-success-custom dark:text-green-400'}`}>
                     {med.remainingPills} / {med.maxPills} left
                   </span>
                 </div>
-                <div className="w-full bg-[#f0f3ff] dark:bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-accent-light dark:bg-slate-850 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      isLow ? 'bg-[#ba1a1a] dark:bg-red-400' : 'bg-[#006e2d] dark:bg-green-450'
+                      isLow ? 'bg-error-custom' : 'bg-accent dark:bg-[#7cf994]'
                     }`}
                     style={{ width: `${remainingPercent}%` }}
                   ></div>
@@ -306,7 +351,7 @@ export default function DashboardView({
             );
           })}
           {medicines.length === 0 && (
-            <p className="text-xs text-center text-[#737686] py-2">No slots initialized.</p>
+            <p className="text-xs text-center text-muted py-2">No slots initialized.</p>
           )}
         </div>
       </section>
@@ -314,19 +359,19 @@ export default function DashboardView({
       {/* Recent Activity */}
       <section className="space-y-3">
         <h3 className="text-base font-bold">Recent Activity</h3>
-        <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-[#c3c6d7] dark:border-slate-700/50 space-y-4 relative before:absolute before:left-6 before:top-6 before:bottom-6 before:w-[2px] before:bg-[#e7eeff] dark:before:bg-slate-700">
-          {logs.slice(0, 3).map((log) => {
-            let statusColor = 'bg-[#006e2d]';
+        <div className="card-glass p-4 space-y-4 relative before:absolute before:left-6 before:top-6 before:bottom-6 before:w-[2px] before:bg-accent-light dark:before:bg-slate-800/80">
+          {logs.filter(l => l.category !== 'Refilled').slice(0, 3).map((log) => {
+            let statusColor = 'bg-accent dark:bg-[#7cf994] text-white dark:text-slate-900';
             let iconName = 'check_circle';
 
             if (log.status === 'Missed') {
-              statusColor = 'bg-[#784b00]';
+              statusColor = 'bg-amber-600 dark:bg-amber-500 text-white';
               iconName = 'history';
             } else if (log.status === 'Cancelled') {
-              statusColor = 'bg-[#737686]';
+              statusColor = 'bg-slate-500 dark:bg-slate-600 text-white';
               iconName = 'cancel';
             } else if (log.status === 'Failed') {
-              statusColor = 'bg-[#ba1a1a]';
+              statusColor = 'bg-error-custom text-white';
               iconName = 'error';
             }
 
@@ -334,19 +379,42 @@ export default function DashboardView({
 
             return (
               <div key={log.id} className="flex gap-4 relative z-10 items-start">
-                <div className={`w-6 h-6 rounded-full ${statusColor} text-white flex items-center justify-center ring-4 ring-white dark:ring-slate-800 shrink-0 shadow-sm`}>
+                <div className={`w-6 h-6 rounded-full ${statusColor} flex items-center justify-center ring-4 ring-white dark:ring-slate-900 shrink-0 shadow-sm`}>
                   <span className="material-symbols-outlined text-[13px] fill-icon">{iconName}</span>
                 </div>
                 <div className="flex-1">
                   <p className="text-xs font-bold">{log.medicineName} {log.status}</p>
-                  <p className="text-[10px] text-[#737686] dark:text-slate-400 mt-0.5">{logTime} • {log.detailText}</p>
+                  <p className="text-[10px] text-muted dark:text-slate-400 mt-0.5">{logTime} • {log.detailText}</p>
                 </div>
               </div>
             );
           })}
           {logs.length === 0 && (
-            <p className="text-xs text-center text-[#737686] py-2">No activity logs recorded.</p>
+            <p className="text-xs text-center text-muted py-2">No activity logs recorded.</p>
           )}
+        </div>
+      </section>
+
+      {/* Dispenser Connection status card (moved from top to bottom of Dashboard) */}
+      <section className="card-glass p-4 flex items-center justify-between mt-4">
+        <div className="flex items-center gap-3">
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+            settings.apiMode === 'REAL_DEVICE'
+              ? 'bg-accent-light/40 text-accent dark:bg-accent/20 dark:text-[#7cf994]'
+              : 'bg-accent-light/40 text-accent dark:bg-accent/20 dark:text-[#7cf994]'
+          }`}>
+            <span className="material-symbols-outlined text-2xl">
+              {settings.apiMode === 'REAL_DEVICE' ? 'dns' : 'wifi'}
+            </span>
+          </div>
+          <div>
+            <h3 className="text-base font-bold">
+              {settings.apiMode === 'REAL_DEVICE' ? 'ESP32 IoT Hub Connected' : 'Simulated Dispenser Online'}
+            </h3>
+            <p className="text-xs text-muted dark:text-slate-400">
+              API Mode: <span className="font-mono font-bold">{settings.apiMode || 'SIMULATOR'}</span> • IP: {settings.esp32Ip || '192.168.4.1'}
+            </p>
+          </div>
         </div>
       </section>
     </div>

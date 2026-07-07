@@ -30,6 +30,7 @@ export interface Log {
   dosageText: string;
   status: LogStatus;
   detailText: string;
+  category?: 'Dispensed' | 'Missed' | 'Refilled' | 'Diagnostics' | 'WiFi' | 'Errors';
 }
 
 export interface HardwareComponent {
@@ -79,6 +80,9 @@ export interface Settings {
     diagnosticsWarnings: boolean;
     hardwareFaults: boolean;
   };
+  reminderSoundsEnabled: boolean;
+  notificationSound: 'chime' | 'ping' | 'alarm';
+  speakerVolume: number;
 }
 
 // WiFi Configuration payload

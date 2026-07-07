@@ -1,199 +1,181 @@
 import React, { useState } from 'react';
-import { Log, LogStatus } from '../types';
+import { Log } from '../types';
 
 interface LogsViewProps {
   logs: Log[];
-  onClearLogs?: () => void;
+  onClearLogs: () => void;
   onNavigate: (screen: string) => void;
 }
 
-export default function LogsView({ logs, onClearLogs, onNavigate }: LogsViewProps) {
-  const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState<'All' | LogStatus>('All');
+type FilterCategory = 'All' | 'Dispensed' | 'Missed' | 'Refilled' | 'Diagnostics' | 'WiFi' | 'Errors';
 
-  // Filter logs
+// Helper to resolve retrofitted category types for older/custom log formats
+function resolveLogCategory(log: Log): FilterCategory {
+  if (log.category) return log.category;
+
+  // Fallbacks based on content
+  const doseLower = log.dosageText.toLowerCase();
+  const detailLower = log.detailText.toLowerCase();
+
+  if (doseLower.includes('refill') || detailLower.includes('refill') || detailLower.includes('replenish')) {
+    return 'Refilled';
+  }
+  if (doseLower.includes('ssid') || doseLower.includes('wifi') || detailLower.includes('wifi') || detailLower.includes('associated')) {
+    return 'WiFi';
+  }
+  if (log.status === 'Missed') {
+    return 'Missed';
+  }
+  if (log.status === 'Failed' || doseLower.includes('fail') || detailLower.includes('fail')) {
+    return 'Errors';
+  }
+  if (doseLower.includes('diagnostic') || doseLower.includes('reboot') || doseLower.includes('test') || detailLower.includes('actuator') || detailLower.includes('check')) {
+    return 'Diagnostics';
+  }
+  return 'Dispensed';
+}
+
+export default function LogsView({
+  logs,
+  onClearLogs
+}: LogsViewProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<FilterCategory>('All');
+
+  // Filter badges list
+  const categories: FilterCategory[] = ['All', 'Dispensed', 'Missed', 'Refilled', 'Diagnostics', 'WiFi', 'Errors'];
+
+  // Process filtering and search
   const filteredLogs = logs.filter(log => {
-    const matchesSearch = log.medicineName.toLowerCase().includes(search.toLowerCase()) || 
-                          log.detailText.toLowerCase().includes(search.toLowerCase());
-    const matchesFilter = activeFilter === 'All' || log.status === activeFilter;
-    return matchesSearch && matchesFilter;
+    const category = resolveLogCategory(log);
+    const matchesCategory = selectedCategory === 'All' || category === selectedCategory;
+
+    const query = searchQuery.toLowerCase();
+    const matchesSearch = 
+      log.medicineName.toLowerCase().includes(query) ||
+      log.dosageText.toLowerCase().includes(query) ||
+      log.detailText.toLowerCase().includes(query);
+
+    return matchesCategory && matchesSearch;
   });
-
-  // Categorize logs by date
-  const todayStr = new Date().toDateString();
-  const yesterdayStr = new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString();
-
-  const todayLogs = filteredLogs.filter(log => new Date(log.timestamp).toDateString() === todayStr);
-  const yesterdayLogs = filteredLogs.filter(log => new Date(log.timestamp).toDateString() === yesterdayStr);
-  const olderLogs = filteredLogs.filter(log => {
-    const dStr = new Date(log.timestamp).toDateString();
-    return dStr !== todayStr && dStr !== yesterdayStr;
-  });
-
-  const renderLogItem = (log: Log, index: number, array: Log[]) => {
-    let statusClass = 'bg-[#7cf994] text-[#007230]';
-    let iconName = 'check_circle';
-
-    if (log.status === 'Missed') {
-      statusClass = 'bg-[#ffddb8] text-[#996100]';
-      iconName = 'history';
-    } else if (log.status === 'Cancelled') {
-      statusClass = 'bg-[#f0f3ff] text-[#737686] border border-[#c3c6d7]';
-      iconName = 'cancel';
-    } else if (log.status === 'Failed') {
-      statusClass = 'bg-[#ffdad6] text-[#93000a]';
-      iconName = 'error';
-    }
-
-    const logTime = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const isLast = index === array.length - 1;
-
-    return (
-      <div key={log.id} className="relative flex gap-4 timeline-item">
-        {/* Connector line */}
-        {!isLast && (
-          <div className="absolute left-6 top-12 bottom-[-24px] w-[2px] bg-[#cbd5e1] pointer-events-none"></div>
-        )}
-
-        <div className={`z-10 w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
-          log.status === 'Taken' ? 'bg-[#7cf994]/30 text-[#007230]' : 
-          log.status === 'Missed' ? 'bg-[#ffddb8]/30 text-[#996100]' : 
-          log.status === 'Cancelled' ? 'bg-[#f0f3ff] text-[#737686] border border-[#c3c6d7]' : 
-          'bg-[#ffdad6]/50 text-[#93000a]'
-        }`}>
-          <span className="material-symbols-outlined fill-icon text-xl">{iconName}</span>
-        </div>
-
-        <div className="flex-grow bg-white p-4 rounded-2xl shadow-sm border border-[#c3c6d7]/30">
-          <div className="flex justify-between items-start mb-1.5">
-            <div>
-              <h3 className="font-bold text-sm text-[#111c2d]">{log.medicineName}</h3>
-              <p className="text-[10px] text-[#737686] font-mono mt-0.5">{logTime} • {log.dosageText}</p>
-            </div>
-            <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider ${statusClass}`}>
-              {log.status === 'Taken' ? 'Taken' : log.status}
-            </span>
-          </div>
-          <p className="text-xs text-[#434655] font-medium leading-relaxed">{log.detailText}</p>
-        </div>
-      </div>
-    );
-  };
 
   return (
-    <div className="space-y-6 pt-2">
-      {/* Top action header */}
-      <div className="flex justify-between items-center">
-        <button
-          onClick={() => onNavigate('home')}
-          className="flex items-center gap-1.5 text-xs text-[#004ac6] font-bold"
-        >
-          <span className="material-symbols-outlined text-sm">arrow_back</span>
-          <span>Back to Dashboard</span>
-        </button>
-        {onClearLogs && logs.length > 0 && (
+    <div className="space-y-6 pt-2 text-light dark:text-white">
+      {/* Header Summary */}
+      <section className="card-glass p-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold">Activity Logs History</h2>
+          <p className="text-[10px] text-muted dark:text-slate-400 mt-1 font-medium">
+            {filteredLogs.length} events matching current filters
+          </p>
+        </div>
+        {logs.length > 0 && (
           <button
             onClick={() => {
-              if (confirm('Are you sure you want to clear all history?')) {
+              if (confirm('Clear entire hardware diagnostic logs and history?')) {
                 onClearLogs();
               }
             }}
-            className="text-xs text-[#ba1a1a] font-bold hover:underline"
+            className="text-xs font-bold text-error-custom dark:text-red-400 hover:underline cursor-pointer"
           >
-            Clear All
+            Clear History
           </button>
         )}
+      </section>
+
+      {/* Interactive Search Bar */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search logs by keyword..."
+          className="w-full h-11 pl-10 pr-4 input-custom text-xs"
+        />
+        <span className="material-symbols-outlined text-muted absolute left-3.5 top-1/2 -translate-y-1/2 text-lg">
+          search
+        </span>
       </div>
 
-      {/* Title */}
-      <section className="space-y-1">
-        <h2 className="text-xl font-bold text-[#111c2d] tracking-tight">Medication Log Timeline</h2>
-        <p className="text-xs text-[#737686]">Audited telemetry of dispensing schedules</p>
-      </section>
+      {/* Categories Filter Badges Grid (Horizontally Scrollable chips) */}
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none snap-x">
+        {categories.map(cat => {
+          const isActive = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 rounded-full text-xs font-bold shrink-0 transition-all active:scale-95 snap-center cursor-pointer border ${
+                isActive
+                  ? 'bg-accent border-accent text-white dark:bg-[#7cf994] dark:border-[#7cf994] dark:text-slate-950 shadow-sm'
+                  : 'bg-primary/20 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/45'
+              }`}
+            >
+              {cat}
+            </button>
+          );
+        })}
+      </div>
 
-      {/* Search & Status Filters */}
-      <section className="space-y-3">
-        <div className="flex gap-2">
-          <div className="relative flex-grow">
-            <span className="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-[#737686] text-lg">search</span>
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search medication logs..."
-              className="w-full h-11 pl-10 pr-4 rounded-xl border-none bg-white shadow-sm focus:ring-2 focus:ring-[#004ac6] text-xs font-medium text-[#111c2d]"
-            />
-          </div>
-        </div>
+      {/* Activity Timeline logs */}
+      <div className="space-y-3.5">
+        {filteredLogs.map(log => {
+          const cat = resolveLogCategory(log);
+          
+          // Style assignments
+          let badgeColor = 'bg-accent dark:bg-[#7cf994] text-white dark:text-slate-900';
+          let iconName = 'check_circle';
 
-        {/* Filter Badges */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1.5 hide-scrollbar scroll-smooth">
-          {(['All', 'Taken', 'Missed', 'Cancelled', 'Failed'] as const).map(filter => {
-            const isSelected = activeFilter === filter;
-            return (
-              <button
-                key={filter}
-                type="button"
-                onClick={() => setActiveFilter(filter)}
-                className={`px-3.5 py-1.5 rounded-full text-[11px] font-bold border transition-all shrink-0 whitespace-nowrap active:scale-95 ${
-                  isSelected
-                    ? 'bg-[#004ac6] text-white border-[#004ac6] shadow-sm'
-                    : 'bg-white text-[#737686] border-[#c3c6d7]/30 hover:bg-[#f0f3ff]'
-                }`}
-              >
-                {filter === 'All' ? 'All Logs' : filter === 'Taken' ? 'Taken' : filter}
-              </button>
-            );
-          })}
-        </div>
-      </section>
+          if (cat === 'Missed') {
+            badgeColor = 'bg-amber-600 dark:bg-amber-500 text-white';
+            iconName = 'history';
+          } else if (cat === 'Errors') {
+            badgeColor = 'bg-error-custom text-white';
+            iconName = 'error';
+          } else if (cat === 'Refilled') {
+            badgeColor = 'bg-teal-700 dark:bg-teal-600 text-white';
+            iconName = 'replay';
+          } else if (cat === 'WiFi') {
+            badgeColor = 'bg-blue-600 dark:bg-blue-500 text-white';
+            iconName = 'wifi';
+          } else if (cat === 'Diagnostics') {
+            badgeColor = 'bg-purple-600 dark:bg-purple-500 text-white';
+            iconName = 'construction';
+          }
 
-      {/* Timeline entries list */}
-      <div className="space-y-8 pt-2">
-        {/* Today Group */}
-        {todayLogs.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-3.5">
-              <h2 className="text-[10px] font-bold text-[#737686] uppercase tracking-widest font-mono shrink-0">Today</h2>
-              <div className="h-px bg-[#cbd5e1] flex-grow"></div>
-            </div>
-            <div className="space-y-6">
-              {todayLogs.map((log, index) => renderLogItem(log, index, todayLogs))}
-            </div>
-          </section>
-        )}
+          const logTime = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const logDate = new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' });
 
-        {/* Yesterday Group */}
-        {yesterdayLogs.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-3.5">
-              <h2 className="text-[10px] font-bold text-[#737686] uppercase tracking-widest font-mono shrink-0">Yesterday</h2>
-              <div className="h-px bg-[#cbd5e1] flex-grow"></div>
+          return (
+            <div key={log.id} className="card-glass p-3.5 flex gap-4.5 items-start">
+              <div className={`w-8 h-8 rounded-full ${badgeColor} flex items-center justify-center shrink-0 ring-4 ring-white dark:ring-slate-900 shadow-sm`}>
+                <span className="material-symbols-outlined text-base fill-icon">{iconName}</span>
+              </div>
+              <div className="flex-grow">
+                <div className="flex justify-between items-baseline">
+                  <h4 className="text-xs font-bold leading-none">{log.medicineName}</h4>
+                  <span className="text-[9px] text-muted dark:text-slate-400 font-mono">
+                    {logDate} at {logTime}
+                  </span>
+                </div>
+                <div className="text-[10px] font-bold text-accent dark:text-[#7cf994] mt-1.5">
+                  {log.dosageText}
+                </div>
+                <p className="text-[10px] text-muted dark:text-slate-400 mt-1 leading-relaxed">
+                  {log.detailText}
+                </p>
+                <div className="mt-2 text-[8px] font-extrabold uppercase tracking-wider text-muted px-2 py-0.5 bg-primary/25 border border-border-custom dark:border-slate-800 rounded-sm inline-block">
+                  {cat}
+                </div>
+              </div>
             </div>
-            <div className="space-y-6">
-              {yesterdayLogs.map((log, index) => renderLogItem(log, index, yesterdayLogs))}
-            </div>
-          </section>
-        )}
+          );
+        })}
 
-        {/* Older Group */}
-        {olderLogs.length > 0 && (
-          <section className="space-y-4">
-            <div className="flex items-center gap-3.5">
-              <h2 className="text-[10px] font-bold text-[#737686] uppercase tracking-widest font-mono shrink-0">Past Logs</h2>
-              <div className="h-px bg-[#cbd5e1] flex-grow"></div>
-            </div>
-            <div className="space-y-6">
-              {olderLogs.map((log, index) => renderLogItem(log, index, olderLogs))}
-            </div>
-          </section>
-        )}
-
-        {/* Empty State */}
         {filteredLogs.length === 0 && (
-          <div className="bg-white p-8 rounded-2xl text-center border border-[#c3c6d7] shadow-sm">
-            <span className="material-symbols-outlined text-4xl text-[#737686]">info</span>
-            <p className="text-sm font-medium text-[#434655] mt-2">No matching logs found.</p>
+          <div className="card-glass p-8 text-center text-muted">
+            <span className="material-symbols-outlined text-3xl">hourglass_empty</span>
+            <p className="text-xs font-medium mt-2">No activity records match search criteria.</p>
           </div>
         )}
       </div>

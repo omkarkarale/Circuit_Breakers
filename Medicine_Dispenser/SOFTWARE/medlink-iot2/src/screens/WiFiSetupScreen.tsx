@@ -58,12 +58,12 @@ export default function WiFiSetupView({
   };
 
   return (
-    <div className="space-y-6 pt-2 text-[#111c2d] dark:text-white">
+    <div className="space-y-6 pt-2 text-light dark:text-white">
       {/* Back navigation */}
       <div>
         <button
           onClick={() => onNavigate('settings')}
-          className="flex items-center gap-1.5 text-xs text-[#004ac6] dark:text-[#7cf994] font-bold"
+          className="flex items-center gap-1.5 text-xs text-accent dark:text-[#7cf994] font-bold cursor-pointer hover:underline"
         >
           <span className="material-symbols-outlined text-sm">arrow_back</span>
           <span>Back to Settings</span>
@@ -71,14 +71,14 @@ export default function WiFiSetupView({
       </div>
 
       {/* Connection Status Banner */}
-      <section className="bg-white dark:bg-slate-800 border border-[#c3c6d7]/30 dark:border-slate-700/50 p-5 rounded-2xl shadow-sm space-y-3">
+      <section className="card-glass p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-[#737686] dark:text-slate-450 tracking-wider">Connection Status</span>
+            <span className="text-[10px] uppercase font-bold text-muted dark:text-slate-400 tracking-wider">Connection Status</span>
             <h2
               className={`text-lg font-bold mt-1.5 flex items-center gap-1.5 transition-all ${
-                status === 'Connected' ? 'text-[#006e2d] dark:text-[#7cf994]' : 
-                status === 'Connecting' ? 'text-[#004ac6] dark:text-blue-400' : 'text-[#ba1a1a] dark:text-red-400'
+                status === 'Connected' ? 'text-success-custom dark:text-[#7cf994]' : 
+                status === 'Connecting' ? 'text-accent dark:text-blue-400' : 'text-error-custom dark:text-red-400'
               }`}
             >
               <span className={`material-symbols-outlined ${status === 'Connecting' ? 'animate-spin' : ''}`}>
@@ -91,14 +91,14 @@ export default function WiFiSetupView({
 
           {/* Graphical Signal Bars */}
           <div className="flex items-end gap-1 h-8">
-            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 1 ? (status === 'Connected' ? 'bg-[#006e2d] dark:bg-[#7cf994]' : 'bg-[#004ac6] dark:bg-blue-400') : 'bg-[#c3c6d7] dark:bg-slate-700'} h-[25%]`}></div>
-            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 2 ? (status === 'Connected' ? 'bg-[#006e2d] dark:bg-[#7cf994]' : 'bg-[#004ac6] dark:bg-blue-400') : 'bg-[#c3c6d7] dark:bg-slate-700'} h-[50%]`}></div>
-            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 3 ? (status === 'Connected' ? 'bg-[#006e2d] dark:bg-[#7cf994]' : 'bg-[#004ac6] dark:bg-blue-400') : 'bg-[#c3c6d7] dark:bg-slate-700'} h-[75%]`}></div>
-            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 4 ? (status === 'Connected' ? 'bg-[#006e2d] dark:bg-[#7cf994]' : 'bg-[#004ac6] dark:bg-blue-400') : 'bg-[#c3c6d7] dark:bg-slate-700'} h-[100%]`}></div>
+            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 1 ? (status === 'Connected' ? 'bg-success-custom' : 'bg-accent dark:bg-[#7cf994]') : 'bg-border-custom dark:bg-slate-700'} h-[25%]`}></div>
+            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 2 ? (status === 'Connected' ? 'bg-success-custom' : 'bg-accent dark:bg-[#7cf994]') : 'bg-border-custom dark:bg-slate-700'} h-[50%]`}></div>
+            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 3 ? (status === 'Connected' ? 'bg-success-custom' : 'bg-accent dark:bg-[#7cf994]') : 'bg-border-custom dark:bg-slate-700'} h-[75%]`}></div>
+            <div className={`w-1.5 rounded-full transition-all ${activeBars >= 4 ? (status === 'Connected' ? 'bg-success-custom' : 'bg-accent dark:bg-[#7cf994]') : 'bg-border-custom dark:bg-slate-700'} h-[100%]`}></div>
           </div>
         </div>
 
-        <p className="text-xs text-[#434655] dark:text-slate-300 leading-relaxed">
+        <p className="text-xs text-muted dark:text-slate-300 leading-relaxed">
           {status === 'Connected' 
             ? `Successfully connected to ${ssid}. The dispenser endpoint IP is resolved to ${assignedIp}.`
             : status === 'Connecting'
@@ -111,7 +111,7 @@ export default function WiFiSetupView({
       <section className="space-y-4">
         <div className="space-y-4">
           <div className="relative">
-            <label className="block text-xs font-bold text-[#737686] dark:text-slate-400 mb-1.5 ml-1" htmlFor="ssid">
+            <label className="block text-xs font-bold text-muted dark:text-slate-400 mb-1.5 ml-1" htmlFor="ssid">
               Network Name (SSID)
             </label>
             <div className="relative">
@@ -122,11 +122,11 @@ export default function WiFiSetupView({
                 value={ssid}
                 onChange={e => setSsid(e.target.value)}
                 placeholder="Network SSID name..."
-                className="w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border border-[#c3c6d7]/50 dark:border-slate-700/60 focus:border-[#004ac6] dark:focus:border-[#7cf994] focus:ring-2 focus:ring-[#004ac6]/15 outline-none transition-all text-sm font-semibold text-[#111c2d] dark:text-white"
+                className="input-custom"
               />
               <button
                 type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#737686] hover:text-[#004ac6] dark:hover:text-[#7cf994]"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-accent dark:hover:text-[#7cf994] cursor-pointer"
                 onClick={() => setSsid('Home_Network_2.4G')}
               >
                 <span className="material-symbols-outlined text-lg">wifi_find</span>
@@ -135,7 +135,7 @@ export default function WiFiSetupView({
           </div>
 
           <div className="relative">
-            <label className="block text-xs font-bold text-[#737686] dark:text-slate-400 mb-1.5 ml-1" htmlFor="password">
+            <label className="block text-xs font-bold text-muted dark:text-slate-400 mb-1.5 ml-1" htmlFor="password">
               Password
             </label>
             <div className="relative">
@@ -146,11 +146,11 @@ export default function WiFiSetupView({
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Enter password..."
-                className="w-full h-12 px-4 rounded-xl bg-white dark:bg-slate-800 border border-[#c3c6d7]/50 dark:border-slate-700/60 focus:border-[#004ac6] dark:focus:border-[#7cf994] focus:ring-2 focus:ring-[#004ac6]/15 outline-none transition-all text-sm font-semibold text-[#111c2d] dark:text-white"
+                className="input-custom"
               />
               <button
                 type="button"
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-[#737686] hover:text-[#004ac6] dark:hover:text-[#7cf994]"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted hover:text-accent dark:hover:text-[#7cf994] cursor-pointer"
                 onClick={() => setShowPassword(!showPassword)}
               >
                 <span className="material-symbols-outlined text-lg">
@@ -166,7 +166,7 @@ export default function WiFiSetupView({
           type="button"
           onClick={handleConnect}
           disabled={status === 'Connecting'}
-          className="w-full h-14 bg-[#004ac6] hover:bg-[#2563eb] dark:bg-[#7cf994] dark:hover:bg-[#9effb5] text-white dark:text-[#002109] rounded-xl font-bold text-sm shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-6"
+          className="w-full h-14 bg-accent hover:bg-accent-hover text-white rounded-sm font-bold text-sm shadow-md flex items-center justify-center gap-2 active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed mt-6 cursor-pointer"
         >
           {status === 'Connecting' ? (
             <>
@@ -192,7 +192,7 @@ export default function WiFiSetupView({
         <button
           type="button"
           onClick={() => nativeAlert('Ensure that the hardware module has been powered on and is operating in softAP mode.')}
-          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl hover:bg-[#dee8ff] dark:hover:bg-slate-800 text-[#004ac6] dark:text-[#7cf994] text-xs font-bold transition-colors"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-sm hover:bg-accent-light dark:hover:bg-slate-800 text-accent dark:text-[#7cf994] text-xs font-bold transition-colors cursor-pointer"
         >
           <span className="material-symbols-outlined text-sm">help</span>
           <span>Trouble connecting?</span>

@@ -22,7 +22,10 @@ const DEFAULT_SETTINGS: Settings = {
     wifiDisconnected: true,
     diagnosticsWarnings: true,
     hardwareFaults: true,
-  }
+  },
+  reminderSoundsEnabled: true,
+  notificationSound: 'chime',
+  speakerVolume: 75
 };
 
 export const LocalStorageService = {

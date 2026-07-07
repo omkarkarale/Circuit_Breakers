@@ -41,30 +41,30 @@ export default function DiagnosticsView({
   };
 
   return (
-    <div className="space-y-6 pt-2 text-[#111c2d] dark:text-white">
+    <div className="space-y-6 pt-2 text-light dark:text-white">
       {/* Header Info */}
       <section className="space-y-1">
         <h2 className="text-xl font-bold tracking-tight">System Diagnostics</h2>
-        <p className="text-xs text-[#737686] dark:text-slate-400">Engineering level hardware health monitor</p>
+        <p className="text-xs text-muted dark:text-slate-400">Engineering level hardware health monitor</p>
       </section>
 
-      {/* 1. Internal temperature status card - Show only if supported, and place at the top! */}
+      {/* 1. Internal temperature status card */}
       {config.tempSupported && (
-        <section className={`rounded-2xl p-5 relative overflow-hidden shadow-md border transition-all ${
+        <section className={`rounded-sm p-5 relative overflow-hidden shadow-md border transition-all ${
           isTempExceeded 
-            ? 'bg-[#ffdad6] border-[#ba1a1a]/30 text-[#93000a]' 
-            : 'bg-[#2563eb] text-white border-transparent'
+            ? 'bg-error-bg dark:bg-red-950/20 border-error-custom/30 text-error-custom dark:text-red-400' 
+            : 'bg-gradient-to-br from-accent/90 to-accent-hover/90 dark:from-accent/70 dark:to-accent-hover/60 text-white border-transparent'
         }`}>
           <div className="relative z-10 space-y-4">
             <div className="flex justify-between items-start">
               <div>
-                <h4 className={`text-xs font-semibold uppercase tracking-wider ${isTempExceeded ? 'text-[#93000a]/80' : 'text-white/80'}`}>
+                <h4 className={`text-xs font-semibold uppercase tracking-wider ${isTempExceeded ? 'text-error-custom/80' : 'text-white/80'}`}>
                   Dispenser Internal Core
                 </h4>
                 <div className="flex items-baseline gap-1.5 mt-2">
                   <span className="text-3xl font-bold font-mono">{internalTemp}°C</span>
-                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
-                    isTempExceeded ? 'bg-[#ffdad6] text-[#ba1a1a] border border-[#ba1a1a]/30 animate-pulse' : 'bg-[#7cf994] text-[#007230]'
+                  <span className={`text-xs px-2.5 py-0.5 rounded-sm font-bold uppercase tracking-wider ${
+                    isTempExceeded ? 'bg-error-bg text-error-custom border border-error-custom/30 animate-pulse' : 'bg-success-bg/40 text-success-custom dark:bg-[#7cf994]/20 dark:text-[#7cf994]'
                   }`}>
                     {isTempExceeded ? 'High Temp Warning' : 'Safe Range'}
                   </span>
@@ -87,7 +87,7 @@ export default function DiagnosticsView({
                 max="50"
                 value={threshold}
                 onChange={e => onUpdateSettings({ tempThreshold: parseInt(e.target.value) })}
-                className="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+                className="w-full h-1 bg-white/20 rounded-sm appearance-none cursor-pointer accent-white dark:accent-[#7cf994]"
               />
               <div className="flex justify-between text-[9px] opacity-75 mt-0.5">
                 <span>30°C</span>
@@ -97,7 +97,7 @@ export default function DiagnosticsView({
 
             {/* Warning Message */}
             {isTempExceeded && (
-              <div className="bg-[#ba1a1a] text-white p-3 rounded-xl text-xs font-bold flex items-center gap-2 animate-bounce">
+              <div className="bg-error-custom text-white p-3 rounded-sm text-xs font-bold flex items-center gap-2 animate-bounce">
                 <span className="material-symbols-outlined text-sm">warning</span>
                 <span>CRITICAL: High Temp limit exceeded! Check enclosure fan.</span>
               </div>
@@ -107,27 +107,27 @@ export default function DiagnosticsView({
         </section>
       )}
 
-      {/* Diagnostics Bento-style Grid */}
+      {/* Diagnostics Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {hardware.map((hw, idx) => {
           const isTesting = currentTestingIndex === idx;
-          let badgeColor = 'bg-[#7cf994] text-[#007230]';
-          let borderColor = 'border-[#c3c6d7]/30 dark:border-slate-700/50';
-          let iconBg = 'bg-[#7cf994]/20 text-[#007230]';
+          let badgeColor = 'bg-success-bg/50 text-success-custom dark:bg-[#7cf994]/20 dark:text-[#7cf994] border border-success-custom/10';
+          let borderColor = 'border-border-custom dark:border-slate-800';
+          let iconBg = 'bg-accent-light dark:bg-slate-800 text-accent dark:text-[#7cf994] border border-accent/10';
 
           if (hw.status === 'Warning') {
-            badgeColor = 'bg-[#ffddb8] text-[#996100]';
-            borderColor = 'border-[#996100]/40';
-            iconBg = 'bg-[#ffddb8]/30 text-[#996100]';
+            badgeColor = 'bg-amber-100 text-amber-850 dark:bg-amber-950/20 dark:text-amber-450 border border-amber-500/20';
+            borderColor = 'border-amber-500/40';
+            iconBg = 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-500/10';
           } else if (hw.status === 'Offline') {
-            badgeColor = 'bg-[#ffdad6] text-[#93000a]';
-            borderColor = 'border-[#ba1a1a]/30';
-            iconBg = 'bg-[#ffdad6]/40 text-[#ba1a1a]';
+            badgeColor = 'bg-error-bg text-error-custom dark:bg-red-950/20 dark:text-red-400 border border-error-custom/25';
+            borderColor = 'border-error-custom/30';
+            iconBg = 'bg-error-bg dark:bg-red-950/30 text-error-custom dark:text-red-400 border border-error-custom/15';
           }
 
           if (isTesting) {
-            badgeColor = 'bg-[#2563eb] text-white animate-pulse';
-            borderColor = 'border-[#004ac6]';
+            badgeColor = 'bg-accent text-white animate-pulse border border-accent/20';
+            borderColor = 'border-accent dark:border-[#7cf994]';
           }
 
           let iconSymbol = 'settings_motion_mode';
@@ -141,22 +141,22 @@ export default function DiagnosticsView({
           return (
             <div
               key={hw.id}
-              className={`bg-white dark:bg-slate-800 rounded-2xl p-4 flex flex-col justify-between min-h-[150px] shadow-sm border transition-all ${borderColor} ${
-                isTesting ? 'ring-2 ring-[#004ac6]/20 bg-[#e7eeff]/10 scale-[1.01]' : ''
+              className={`card-glass p-4 flex flex-col justify-between min-h-[150px] border transition-all ${borderColor} ${
+                isTesting ? 'ring-2 ring-accent/20 bg-accent-light/10 scale-[1.01]' : ''
               }`}
             >
               <div className="flex justify-between items-start">
-                <div className={`w-10 h-10 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
+                <div className={`w-10 h-10 rounded-sm ${iconBg} flex items-center justify-center shrink-0`}>
                   <span className="material-symbols-outlined text-xl">{iconSymbol}</span>
                 </div>
-                <span className={`px-2.5 py-0.5 font-bold text-[9px] rounded-full uppercase tracking-wider ${badgeColor}`}>
+                <span className={`px-2.5 py-0.5 font-bold text-[9px] rounded-sm uppercase tracking-wider ${badgeColor}`}>
                   {isTesting ? 'Testing' : hw.status}
                 </span>
               </div>
 
               <div className="mt-4">
                 <h3 className="text-sm font-bold leading-none">{hw.name}</h3>
-                <p className="text-[11px] text-[#737686] dark:text-slate-400 mt-1.5">{hw.description}</p>
+                <p className="text-[11px] text-muted dark:text-slate-400 mt-1.5">{hw.description}</p>
               </div>
 
               {hw.status === 'Offline' ? (
@@ -164,7 +164,7 @@ export default function DiagnosticsView({
                   type="button"
                   disabled={isRunning}
                   onClick={() => onResetComponent(hw.id)}
-                  className="mt-3 w-full py-1.5 bg-[#ba1a1a] text-white font-bold text-xs rounded-lg active:scale-95 transition-all shadow-sm hover:bg-red-700 disabled:opacity-50"
+                  className="mt-3 w-full py-1.5 bg-error-custom text-white font-bold text-xs rounded-sm active:scale-95 transition-all shadow-md hover:bg-error-custom/90 disabled:opacity-50 cursor-pointer"
                 >
                   Reset Controller
                 </button>
@@ -173,10 +173,10 @@ export default function DiagnosticsView({
                   type="button"
                   disabled={isRunning}
                   onClick={() => onTestComponent(hw.id)}
-                  className={`mt-3 w-full py-1.5 border font-semibold text-xs rounded-lg active:scale-95 transition-all hover:bg-[#f0f3ff] dark:hover:bg-slate-700 disabled:opacity-50 ${
+                  className={`mt-3 w-full py-1.5 border font-semibold text-xs rounded-sm active:scale-95 transition-all disabled:opacity-50 cursor-pointer ${
                     hw.status === 'Warning'
-                      ? 'border-[#996100] text-[#996100]'
-                      : 'border-[#004ac6] text-[#004ac6] dark:text-[#7cf994] dark:border-[#7cf994]/50'
+                      ? 'border-amber-500 text-amber-700 hover:bg-amber-50'
+                      : 'border-accent text-accent hover:bg-accent-light dark:text-[#7cf994] dark:border-[#7cf994]/50 dark:hover:bg-slate-800'
                   }`}
                 >
                   {isTesting ? 'Testing...' : 'Test Module'}
@@ -189,9 +189,9 @@ export default function DiagnosticsView({
 
       {/* Decorative Divider */}
       <div className="flex items-center gap-3.5 my-6">
-        <div className="h-px bg-[#c3c6d7] dark:bg-slate-700 flex-grow"></div>
-        <span className="text-[10px] text-[#737686] dark:text-slate-400 uppercase tracking-widest font-mono">Hardware Revision V2.4</span>
-        <div className="h-px bg-[#c3c6d7] dark:bg-slate-700 flex-grow"></div>
+        <div className="h-px bg-border-custom dark:bg-slate-800 flex-grow"></div>
+        <span className="text-[10px] text-muted dark:text-slate-400 uppercase tracking-widest font-mono">Hardware Revision V2.4</span>
+        <div className="h-px bg-border-custom dark:bg-slate-800 flex-grow"></div>
       </div>
 
       {/* Large button: Run Full Diagnostic */}
@@ -200,7 +200,7 @@ export default function DiagnosticsView({
           type="button"
           disabled={isRunning}
           onClick={handleRunAll}
-          className={`w-full h-14 bg-[#004ac6] hover:bg-[#2563eb] text-white font-bold rounded-xl shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+          className={`w-full h-14 bg-accent hover:bg-accent-hover text-white font-bold rounded-sm shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer dark:bg-accent dark:hover:bg-accent-hover ${
             isRunning ? 'opacity-70 cursor-not-allowed' : ''
           }`}
         >
