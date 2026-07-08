@@ -1,3 +1,20 @@
+/**
+ * main.cpp — MedLink IoT Smart Medicine Dispenser
+ *
+ * Boot sequence (strictly ordered, all steps print logs):
+ *   1. Serial + Logger
+ *   2. LittleFS
+ *   3. StorageManager
+ *   4. Load WiFi credentials
+ *   5. WiFiManager (async — does NOT block)
+ *   6. ApiManager  (HTTP server — works in both AP and STA mode)
+ *   7. DeviceService (hardware init)
+ *   8. loop()
+ *
+ * loop() is fully non-blocking:
+ *   wifiManager.update() -> apiManager.update() -> deviceService.update() -> yield() -> delay(5)
+ */
+
 #include <Arduino.h>
 #include <LittleFS.h>
 
@@ -9,88 +26,107 @@
 #include "ApiManager.h"
 
 StorageManager storageManager;
-WiFiManager wifiManager;
-DeviceService deviceService;
-ApiManager apiManager;
+WiFiManager    wifiManager;
+DeviceService  deviceService;
+ApiManager     apiManager;
 
 void setup() {
+  // ── Step 1: Serial & Logger ───────────────────────────────────────────────
   Serial.begin(Config::serialBaudRate());
-  Serial.println("================================");
-  Serial.println("MedLink IoT Smart Dispenser");
-  Serial.println("================================");
+  delay(200);  // Give host a moment to open the monitor
+  Serial.println();
+  Serial.println("========================================");
+  Serial.println("  MedLink IoT Smart Dispenser  Booting");
+  Serial.println("========================================");
 
   Logger::begin();
+  Logger::info("Logger Ready");
 
-  Logger::info("Boot Phase 1: Initializing Filesystem...");
+  // ── Step 2: LittleFS ──────────────────────────────────────────────────────
+  Logger::info("Mounting LittleFS...");
   if (!LittleFS.begin()) {
-    Logger::error("LittleFS mount failed!");
+    Logger::error("LittleFS mount FAILED — filesystem may need formatting");
   } else {
-    Logger::info("LittleFS mounted successfully");
+    Logger::info("LittleFS Mounted");
   }
 
-  Logger::info("Boot Phase 2: Starting StorageManager...");
+  // ── Step 3: StorageManager ────────────────────────────────────────────────
+  Logger::info("Initializing StorageManager...");
   storageManager.begin();
-  Logger::info("StorageManager initialized");
+  Logger::info("Storage Ready");
 
-  Logger::info("Boot Phase 3: Starting WiFiManager...");
-  wifiManager.begin();
-  Logger::info("WiFiManager initialized");
-
-  // Load WiFi credentials
+  // ── Step 4: Load WiFi credentials ─────────────────────────────────────────
+  Logger::info("Loading WiFi credentials...");
   String wifiSSID, wifiPassword;
-  if (storageManager.loadWiFi(wifiSSID, wifiPassword)) {
-    char buf[128];
-    snprintf(buf, sizeof(buf), "Saved credentials found. SSID: %s", wifiSSID.c_str());
+  bool hasCredentials = storageManager.loadWiFi(wifiSSID, wifiPassword);
+  if (hasCredentials && wifiSSID.length() > 0) {
+    char buf[80];
+    snprintf(buf, sizeof(buf), "Credentials Found — SSID: %s", wifiSSID.c_str());
     Logger::info(buf);
-    wifiManager.connect(wifiSSID.c_str(), wifiPassword.c_str());
+    wifiManager.setCredentials(wifiSSID, wifiPassword);
   } else {
-    Logger::warn("No saved WiFi credentials - Setting SoftAP request");
-    wifiManager.setNoCredentials();
+    Logger::info("No Credentials Found");
   }
 
-  // Load medicines
-  size_t loadedMeds = 0;
-  if (storageManager.loadMedicines(deviceService.getMedicines(), DeviceLimits::MAX_MEDICINES, loadedMeds)) {
-    deviceService.getMedicineCount() = loadedMeds;
-    char buf[64];
-    snprintf(buf, sizeof(buf), "Loaded %d medicines from storage", (int)loadedMeds);
-    Logger::info(buf);
+  // ── Step 5: WiFiManager (async — never blocks) ────────────────────────────
+  Logger::info("Starting WiFiManager...");
+  wifiManager.begin();
+  Logger::info("WiFiManager Ready");
+
+  // ── Step 6: Load application state from storage ───────────────────────────
+  // Medicines
+  {
+    size_t loadedMeds = 0;
+    if (storageManager.loadMedicines(deviceService.getMedicines(),
+                                     DeviceLimits::MAX_MEDICINES, loadedMeds)) {
+      deviceService.getMedicineCount() = static_cast<uint8_t>(loadedMeds);
+      char buf[64];
+      snprintf(buf, sizeof(buf), "Loaded %d medicine(s)", (int)loadedMeds);
+      Logger::info(buf);
+    }
+  }
+  // Schedules
+  {
+    size_t loadedSched = 0;
+    if (storageManager.loadSchedules(deviceService.getSchedules(),
+                                     DeviceLimits::MAX_SCHEDULES, loadedSched)) {
+      deviceService.getScheduleCount() = static_cast<uint8_t>(loadedSched);
+      char buf[64];
+      snprintf(buf, sizeof(buf), "Loaded %d schedule(s)", (int)loadedSched);
+      Logger::info(buf);
+    }
+  }
+  // Logs
+  {
+    uint8_t logHead = 0, logTotal = 0;
+    if (storageManager.loadLogs(deviceService.getLogs(),
+                                DeviceLimits::MAX_LOGS, logHead, logTotal)) {
+      deviceService.getLogHead()  = logHead;
+      deviceService.getLogTotal() = logTotal;
+      char buf[64];
+      snprintf(buf, sizeof(buf), "Loaded %d log entry/entries", (int)logTotal);
+      Logger::info(buf);
+    }
   }
 
-  // Load schedules
-  size_t loadedSchedules = 0;
-  if (storageManager.loadSchedules(deviceService.getSchedules(), DeviceLimits::MAX_SCHEDULES, loadedSchedules)) {
-    deviceService.getScheduleCount() = loadedSchedules;
-    char buf[64];
-    snprintf(buf, sizeof(buf), "Loaded %d schedules from storage", (int)loadedSchedules);
-    Logger::info(buf);
-  }
+  // ── Step 7: ApiManager ────────────────────────────────────────────────────
+  Logger::info("Starting ApiManager...");
+  apiManager.begin(&deviceService, &wifiManager, &storageManager);
+  // "HTTP Server Started" is logged inside begin()
 
-  // Load logs
-  uint8_t logHead = 0;
-  uint8_t logTotal = 0;
-  if (storageManager.loadLogs(deviceService.getLogs(), DeviceLimits::MAX_LOGS, logHead, logTotal)) {
-    deviceService.getLogHead() = logHead;
-    deviceService.getLogTotal() = logTotal;
-    char buf[64];
-    snprintf(buf, sizeof(buf), "Loaded %d logs from storage (head=%d)", (int)logTotal, (int)logHead);
-    Logger::info(buf);
-  }
-
-  Logger::info("Boot Phase 4: Starting DeviceService...");
+  // ── Step 8: DeviceService (hardware init) ─────────────────────────────────
+  Logger::info("Starting DeviceService...");
   deviceService.begin(&wifiManager, &storageManager);
-  Logger::info("DeviceService initialized");
+  // "DeviceService Ready" is logged inside begin()
 
-  Logger::info("Boot Phase 5: Starting ApiManager...");
-  apiManager.begin(&deviceService);
-  Logger::info("REST Server Started");
-
-  Logger::info("System Ready");
+  Logger::info("========================================");
+  Logger::info("Ready");
+  Logger::info("========================================");
 }
 
 void loop() {
-  wifiManager.update();
-  apiManager.update();
-  yield();
+  wifiManager.update();    // Drives async state machine
+  apiManager.update();     // Handles incoming HTTP clients
+  yield();                 // Feed the ESP8266 background tasks
   delay(5);
 }

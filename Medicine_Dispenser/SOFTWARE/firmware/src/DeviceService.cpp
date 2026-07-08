@@ -83,8 +83,8 @@ String DeviceService::buildStatusJson() const {
   const bool connected    = wifi_ && wifi_->isConnected();
   const unsigned long up  = (millis() - startMs_) / 1000UL;
 
-  String ip   = connected ? wifi_->getIPAddress().toString() : "0.0.0.0";
-  String ssid = connected ? String(wifi_->getSSID()) : String("");
+  String ip   = wifi_ ? wifi_->getIPString() : "0.0.0.0";
+  String ssid = wifi_ ? wifi_->getActiveSSID() : "";
 
   // Escape strings
   ssid.replace("\"", "\\\"");
@@ -483,7 +483,8 @@ String DeviceService::buildDiagnosticsJson() const {
 
 bool DeviceService::connectWifi(const String& ssid, const String& password) {
   if (!wifi_) return false;
-  return wifi_->connect(ssid.c_str(), password.c_str());
+  wifi_->scheduleConnect(ssid, password);
+  return true;
 }
 
 void DeviceService::saveWifiCredentials(const String& ssid, const String& password) {

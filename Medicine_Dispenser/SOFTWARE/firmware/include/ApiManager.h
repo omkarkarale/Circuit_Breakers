@@ -4,16 +4,19 @@
 
 #include "Config.h"
 #include "DeviceService.h"
+#include "WiFiManager.h"
+#include "StorageManager.h"
 
 /**
  * ApiManager
  *
  * Owns the HTTP server. Registers all /api/v1/... routes and delegates
  * every request to DeviceService. Does NOT contain business logic.
+ * Holds pointers to WiFiManager and StorageManager for provisioning only.
  */
 class ApiManager {
  public:
-  void begin(DeviceService* service);
+  void begin(DeviceService* service, WiFiManager* wifi, StorageManager* storage);
   void update();
   void start();
   void stop();
@@ -31,6 +34,9 @@ class ApiManager {
 
   // Utility: extract numeric id from URI path suffix
   uint8_t extractIdFromUri();
+
+  // String helper (no ArduinoJson dependency)
+  String extractJsonString(const String& json, const String& key);
 
   // GET handlers
   void handleRoot();
@@ -57,14 +63,16 @@ class ApiManager {
   void handleTestIr();
 
   // POST handlers — device
-  void handleWifiConnect();
+  void handleWifiConnect();   // NON-BLOCKING: saves creds and schedules connect
   void handleDeviceReboot();
 
   // OPTIONS preflight (CORS)
   void handleOptions();
 
-  ESP8266WebServer     server_{Config::DEFAULT_HTTP_PORT};
-  DeviceService* service_         = nullptr;
-  bool          routesConfigured_ = false;
-  bool          running_          = false;
+  ESP8266WebServer  server_{Config::DEFAULT_HTTP_PORT};
+  DeviceService*    service_         = nullptr;
+  WiFiManager*      wifi_            = nullptr;
+  StorageManager*   storage_         = nullptr;
+  bool              routesConfigured_ = false;
+  bool              running_          = false;
 };

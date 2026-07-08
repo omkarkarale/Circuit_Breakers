@@ -8,30 +8,59 @@ bool StorageManager::begin() {
 }
 
 bool StorageManager::saveWiFi(const String& ssid, const String& password) {
-  File f = LittleFS.open("/wifi.txt", "w");
+  // Store as JSON: {"ssid":"...","password":"..."}
+  File f = LittleFS.open("/wifi.json", "w");
   if (!f) return false;
-  f.print("ssid="); f.println(ssid);
-  f.print("password="); f.println(password);
+  f.print("{\"ssid\":\"");
+  f.print(ssid);
+  f.print("\",\"password\":\"");
+  f.print(password);
+  f.print("\"}\n");
   f.close();
   return true;
 }
 
 bool StorageManager::loadWiFi(String& ssid, String& password) {
-  if (!LittleFS.exists("/wifi.txt")) return false;
-  File f = LittleFS.open("/wifi.txt", "r");
-  if (!f) return false;
-  while (f.available()) {
-    String line = f.readStringUntil('\n');
-    line.trim();
-    int eq = line.indexOf('=');
-    if (eq == -1) continue;
-    String key = line.substring(0, eq);
-    String val = line.substring(eq + 1);
-    if (key == "ssid") ssid = val;
-    else if (key == "password") password = val;
+  // Try new JSON format first
+  if (LittleFS.exists("/wifi.json")) {
+    File f = LittleFS.open("/wifi.json", "r");
+    if (f) {
+      String content = f.readString();
+      f.close();
+      // Simple JSON string extraction
+      auto extractVal = [](const String& json, const String& key) -> String {
+        String searchKey = "\"" + key + "\":\"";
+        int idx = json.indexOf(searchKey);
+        if (idx < 0) return "";
+        int start = idx + searchKey.length();
+        int end   = json.indexOf('"', start);
+        if (end < 0) return "";
+        return json.substring(start, end);
+      };
+      ssid     = extractVal(content, "ssid");
+      password = extractVal(content, "password");
+      if (ssid.length() > 0) return true;
+    }
   }
-  f.close();
-  return true;
+  // Backward compat: try old key=value format
+  if (LittleFS.exists("/wifi.txt")) {
+    File f = LittleFS.open("/wifi.txt", "r");
+    if (f) {
+      while (f.available()) {
+        String line = f.readStringUntil('\n');
+        line.trim();
+        int eq = line.indexOf('=');
+        if (eq < 0) continue;
+        String key = line.substring(0, eq);
+        String val = line.substring(eq + 1);
+        if (key == "ssid")     ssid     = val;
+        if (key == "password") password = val;
+      }
+      f.close();
+      return (ssid.length() > 0);
+    }
+  }
+  return false;
 }
 
 bool StorageManager::saveMedicines(const void* medicines, size_t count) {

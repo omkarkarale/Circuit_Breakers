@@ -8,12 +8,14 @@
 // Lifecycle
 // ─────────────────────────────────────────────────────────────────────────────
 
-void ApiManager::begin(DeviceService* service) {
+void ApiManager::begin(DeviceService* service, WiFiManager* wifi, StorageManager* storage) {
   service_ = service;
+  wifi_    = wifi;
+  storage_ = storage;
   configureRoutes();
   server_.begin();
   running_ = true;
-  Logger::info("API Manager Ready");
+  Logger::info("HTTP Server Started");
 }
 
 void ApiManager::update() {
@@ -152,6 +154,28 @@ uint8_t ApiManager::extractIdFromUri() {
   return (uint8_t)idStr.toInt();
 }
 
+// Extract a string value from a simple JSON object by key (no ArduinoJson dependency)
+String ApiManager::extractJsonString(const String& json, const String& key) {
+  String searchKey = "\"" + key + "\"";
+  int keyIdx = json.indexOf(searchKey);
+  if (keyIdx < 0) return "";
+  int colonIdx = json.indexOf(':', keyIdx + searchKey.length());
+  if (colonIdx < 0) return "";
+  int valStart = colonIdx + 1;
+  while (valStart < (int)json.length() && json[valStart] == ' ') valStart++;
+  if (valStart >= (int)json.length()) return "";
+  if (json[valStart] == '"') {
+    int valEnd = json.indexOf('"', valStart + 1);
+    if (valEnd < 0) return "";
+    return json.substring(valStart + 1, valEnd);
+  }
+  int valEnd = valStart;
+  while (valEnd < (int)json.length() && json[valEnd] != ',' && json[valEnd] != '}') valEnd++;
+  String result = json.substring(valStart, valEnd);
+  result.trim();
+  return result;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // GET Handlers
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,20 +219,6 @@ void ApiManager::handleDiagnostics() {
 // Medicine CRUD
 // ─────────────────────────────────────────────────────────────────────────────
 
-/*
- * Minimal JSON field extractor.
- * Finds the first occurrence of "key":"value" or "key":number in rawBody
- * and returns the value string. Returns empty String if not found.
- */
-static String extractJsonString(const String& body, const String& key) {
-  String search = "\"" + key + "\":\"";
-  int start = body.indexOf(search);
-  if (start < 0) return "";
-  start += search.length();
-  int end = body.indexOf("\"", start);
-  if (end < 0) return "";
-  return body.substring(start, end);
-}
 
 static int extractJsonInt(const String& body, const String& key) {
   String search = "\"" + key + "\":";
@@ -376,44 +386,26 @@ void ApiManager::handleTestIr() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void ApiManager::handleWifiConnect() {
-  if (!service_) { sendError(500, "Service unavailable"); return; }
-
   const String body = server_.arg("plain");
   String ssid       = extractJsonString(body, "ssid");
   String password   = extractJsonString(body, "password");
 
   if (ssid.length() == 0) { sendError(400, "Missing ssid field"); return; }
 
-  service_->connectWifi(ssid, password);
-
-  // Wait up to 10 seconds for WiFi connection to complete
-  unsigned long startMs = millis();
-  bool connected = false;
-  while (millis() - startMs < 10000) {
-    delay(500);
-    if (WiFi.status() == WL_CONNECTED) {
-      connected = true;
-      break;
-    }
+  // 1. Persist credentials immediately
+  if (storage_) {
+    storage_->saveWiFi(ssid, password);
+    Logger::info("WiFi credentials saved to LittleFS");
   }
 
-  if (connected) {
-    service_->saveWifiCredentials(ssid, password);
-    String ipStr = WiFi.localIP().toString();
-    String json = "{";
-    json += "\"success\":true,";
-    json += "\"message\":\"Connected successfully\",";
-    json += "\"ipAddress\":\"" + ipStr + "\"";
-    json += "}";
-    sendJson(200, json);
-  } else {
-    String json = "{";
-    json += "\"success\":false,";
-    json += "\"message\":\"Connection timed out\",";
-    json += "\"ipAddress\":\"0.0.0.0\"";
-    json += "}";
-    sendJson(200, json);
+  // 2. Schedule background connect (returns immediately)
+  if (wifi_) {
+    wifi_->scheduleConnect(ssid, password);
+    Logger::info("WiFi connection scheduled");
   }
+
+  // 3. Respond immediately — never block
+  sendJson(200, "{\"success\":true,\"message\":\"Connecting...\",\"ssid\":\"" + ssid + "\"}");
 }
 
 void ApiManager::handleDeviceReboot() {

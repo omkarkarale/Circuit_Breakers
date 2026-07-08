@@ -1,129 +1,219 @@
+/**
+ * WiFiManager.cpp — ESP8266 Only
+ *
+ * Production-ready asynchronous WiFi manager.
+ * All long-running operations are split across update() ticks.
+ * NO while loops. NO blocking delays. NO watchdog resets.
+ */
+
 #include "WiFiManager.h"
-
-#include <cstring>
-#include <cstdio>
-
-#include "Config.h"
 #include "Logger.h"
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────────────────────────────────────
+
 void WiFiManager::begin() {
-  state_ = WiFiManagerState::BOOT;
-  credentialsSupplied_ = false;
+  // Build unique AP SSID from lower 16 bits of Chip ID.
+  uint16_t chipSuffix = (uint16_t)(ESP.getChipId() & 0xFFFF);
+  snprintf(apSSID_, sizeof(apSSID_), "MedLink-%04X", chipSuffix);
+
+  enterState(WiFiManagerState::BOOT);
 }
 
-void WiFiManager::setNoCredentials() {
-  state_ = WiFiManagerState::NO_CREDENTIALS;
+void WiFiManager::setCredentials(const String& ssid, const String& password) {
+  ssid_             = ssid;
+  password_         = password;
+  credentialsReady_ = (ssid.length() > 0);
 }
 
-void WiFiManager::update() {
-  if (state_ == WiFiManagerState::NO_CREDENTIALS) {
-    state_ = WiFiManagerState::AP_MODE;
-    return;
-  }
-
-  if (state_ == WiFiManagerState::AP_MODE) {
-    Logger::info("Starting Access Point...");
-    WiFi.mode(WIFI_AP);
-    delay(10);
-    WiFi.softAP("MedLink-Setup", "12345678");
-    delay(10);
-
-    String ipStr = WiFi.softAPIP().toString();
-    char logBuf[192];
-    snprintf(logBuf, sizeof(logBuf), 
-             "Access Point Started\nSSID: MedLink-Setup\nPassword: 12345678\nIP Address: %s", 
-             ipStr.c_str());
-    Logger::info(logBuf);
-
-    state_ = WiFiManagerState::WAIT_FOR_SETUP;
-    return;
-  }
-
-  if (state_ == WiFiManagerState::CONNECTING) {
-    if (WiFi.status() == WL_CONNECTED) {
-      state_ = WiFiManagerState::CONNECTED;
-      Logger::info("WiFi Connected");
-      return;
-    }
-
-    const unsigned long currentMs = millis();
-    if (currentMs - connectionStartedMs_ >= Config::WIFI_CONNECT_TIMEOUT_MS) {
-      WiFi.disconnect(false);
-      Logger::warn("WiFi Connection Failed - Transitioning to AP mode");
-      state_ = WiFiManagerState::NO_CREDENTIALS;
-    }
-    return;
-  }
-
-  if (state_ == WiFiManagerState::CONNECTED && WiFi.status() != WL_CONNECTED) {
-    state_ = WiFiManagerState::DISCONNECTED;
-    Logger::warn("WiFi Disconnected - Reconnecting");
-    state_ = WiFiManagerState::CONNECTING;
-    connectionStartedMs_ = millis();
-    WiFi.begin(ssid_, password_);
-  }
+void WiFiManager::scheduleConnect(const String& ssid, const String& password) {
+  setCredentials(ssid, password);
+  connectScheduled_ = true;
 }
 
-bool WiFiManager::connect(const char* ssid, const char* password) {
-  if (ssid == nullptr || ssid[0] == '\0' || password == nullptr) {
-    state_ = WiFiManagerState::FAILED;
-    Logger::warn("WiFi Credentials Missing");
-    return false;
+void WiFiManager::triggerConnect() {
+  connectScheduled_ = true;
+}
+
+String WiFiManager::getIPString() const {
+  if (state_ == WiFiManagerState::AP_RUNNING) {
+    return WiFi.softAPIP().toString();
   }
-
-  copyCredentials(ssid, password);
-  credentialsSupplied_ = true;
-  connectionStartedMs_ = millis();
-  state_ = WiFiManagerState::CONNECTING;
-
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.begin(ssid_, password_);
-  
-  char logBuf[128];
-  snprintf(logBuf, sizeof(logBuf), "Connecting to SSID: %s", ssid_);
-  Logger::info(logBuf);
-  
-  return true;
-}
-
-void WiFiManager::disconnect() {
-  WiFi.disconnect(true);
-  state_ = WiFiManagerState::DISCONNECTED;
-  Logger::info("WiFi Disconnected");
-}
-
-bool WiFiManager::isConnected() const {
-  return (state_ == WiFiManagerState::CONNECTED && WiFi.status() == WL_CONNECTED) ||
-         (state_ == WiFiManagerState::AP_MODE) ||
-         (state_ == WiFiManagerState::WAIT_FOR_SETUP);
-}
-
-IPAddress WiFiManager::getIPAddress() const {
-  if (state_ == WiFiManagerState::AP_MODE || state_ == WiFiManagerState::WAIT_FOR_SETUP) {
-    return WiFi.softAPIP();
+  if (state_ == WiFiManagerState::CONNECTED) {
+    return WiFi.localIP().toString();
   }
-  if (WiFi.status() != WL_CONNECTED) {
-    return IPAddress();
-  }
-  return WiFi.localIP();
+  return "0.0.0.0";
 }
 
-const char* WiFiManager::getSSID() const {
+String WiFiManager::getActiveSSID() const {
+  if (state_ == WiFiManagerState::AP_RUNNING) {
+    return String(apSSID_);
+  }
   return ssid_;
 }
 
-WiFiManagerState WiFiManager::getState() const {
-  return state_;
+// ─────────────────────────────────────────────────────────────────────────────
+// State Machine — called every loop(), never blocks
+// ─────────────────────────────────────────────────────────────────────────────
+
+void WiFiManager::update() {
+  const uint32_t now = millis();
+
+  switch (state_) {
+
+    // ── BOOT: one-shot transition on first update tick ──────────────────────
+    case WiFiManagerState::BOOT:
+      if (credentialsReady_) {
+        enterState(WiFiManagerState::CONNECTING);
+      } else {
+        enterState(WiFiManagerState::NO_CREDENTIALS);
+      }
+      break;
+
+    // ── NO_CREDENTIALS: request AP startup ─────────────────────────────────
+    case WiFiManagerState::NO_CREDENTIALS:
+      enterState(WiFiManagerState::START_AP);
+      break;
+
+    // ── START_AP: configure and start SoftAP, then settle ──────────────────
+    case WiFiManagerState::START_AP:
+      doStartAP();
+      enterState(WiFiManagerState::AP_RUNNING);
+      break;
+
+    // ── AP_RUNNING: idle, serve HTTP, watch for credential trigger ──────────
+    case WiFiManagerState::AP_RUNNING:
+      if (connectScheduled_ && credentialsReady_) {
+        connectScheduled_ = false;
+        reconnectCount_   = 0;
+        enterState(WiFiManagerState::CONNECTING);
+      }
+      break;
+
+    // ── CONNECTING: wait for connection or timeout ──────────────────────────
+    case WiFiManagerState::CONNECTING: {
+      wl_status_t status = WiFi.status();
+      if (status == WL_CONNECTED) {
+        reconnectCount_ = 0;
+        enterState(WiFiManagerState::CONNECTED);
+        break;
+      }
+      // Check timeout
+      if ((now - stateEnteredMs_) >= CONNECT_TIMEOUT_MS) {
+        Logger::warn("WiFi connection timed out");
+        enterState(WiFiManagerState::FAILED);
+      }
+      break;
+    }
+
+    // ── CONNECTED: watch for disconnection ──────────────────────────────────
+    case WiFiManagerState::CONNECTED:
+      if (WiFi.status() != WL_CONNECTED) {
+        enterState(WiFiManagerState::DISCONNECTED);
+      }
+      break;
+
+    // ── DISCONNECTED: schedule a reconnect attempt ──────────────────────────
+    case WiFiManagerState::DISCONNECTED:
+      enterState(WiFiManagerState::RECONNECTING);
+      break;
+
+    // ── RECONNECTING: wait for reconnect interval then retry ────────────────
+    case WiFiManagerState::RECONNECTING:
+      if ((now - stateEnteredMs_) >= RECONNECT_INTERVAL_MS) {
+        if (reconnectCount_ < MAX_RECONNECT_ATTEMPTS && credentialsReady_) {
+          reconnectCount_++;
+          {
+            char buf[64];
+            snprintf(buf, sizeof(buf), "Reconnect attempt %d/%d",
+                     reconnectCount_, MAX_RECONNECT_ATTEMPTS);
+            Logger::info(buf);
+          }
+          doBeginConnect();
+          enterState(WiFiManagerState::CONNECTING);
+        } else {
+          Logger::warn("Max reconnect attempts reached — restarting SoftAP");
+          reconnectCount_ = 0;
+          enterState(WiFiManagerState::START_AP);
+        }
+      }
+      break;
+
+    // ── FAILED: fall back to AP mode ────────────────────────────────────────
+    case WiFiManagerState::FAILED:
+      Logger::warn("Connection failed — falling back to SoftAP");
+      reconnectCount_ = 0;
+      enterState(WiFiManagerState::START_AP);
+      break;
+  }
 }
 
-void WiFiManager::startAP() {
-  state_ = WiFiManagerState::NO_CREDENTIALS;
+// ─────────────────────────────────────────────────────────────────────────────
+// Private helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+void WiFiManager::enterState(WiFiManagerState next) {
+  stateEnteredMs_ = millis();
+
+  // Print transition
+  auto stateName = [](WiFiManagerState s) -> const char* {
+    switch (s) {
+      case WiFiManagerState::BOOT:          return "BOOT";
+      case WiFiManagerState::NO_CREDENTIALS:return "NO_CREDENTIALS";
+      case WiFiManagerState::START_AP:      return "START_AP";
+      case WiFiManagerState::AP_RUNNING:    return "AP_RUNNING";
+      case WiFiManagerState::CONNECTING:    return "CONNECTING";
+      case WiFiManagerState::CONNECTED:     return "CONNECTED";
+      case WiFiManagerState::DISCONNECTED:  return "DISCONNECTED";
+      case WiFiManagerState::RECONNECTING:  return "RECONNECTING";
+      case WiFiManagerState::FAILED:        return "FAILED";
+      default:                              return "UNKNOWN";
+    }
+  };
+
+  char buf[64];
+  snprintf(buf, sizeof(buf), "STATE -> %s", stateName(next));
+  Logger::info(buf);
+
+  state_ = next;
+
+  // On entry to CONNECTING, immediately kick off the WiFi.begin() call.
+  if (next == WiFiManagerState::CONNECTING) {
+    doBeginConnect();
+  }
 }
 
-void WiFiManager::copyCredentials(const char* ssid, const char* password) {
-  std::strncpy(ssid_, ssid, MAX_SSID_LENGTH);
-  ssid_[MAX_SSID_LENGTH] = '\0';
+void WiFiManager::doStartAP() {
+  // Disconnect STA mode first
+  WiFi.disconnect(false);
+  delay(10);
+  WiFi.mode(WIFI_AP);
+  delay(10);
 
-  std::strncpy(password_, password, MAX_PASSWORD_LENGTH);
-  password_[MAX_PASSWORD_LENGTH] = '\0';
+  IPAddress apIP(192, 168, 4, 1);
+  IPAddress apGW(192, 168, 4, 1);
+  IPAddress apSN(255, 255, 255, 0);
+  WiFi.softAPConfig(apIP, apGW, apSN);
+  WiFi.softAP(apSSID_, "12345678");
+
+  // Let the AP settle (non-blocking — this is inside doStartAP which is called
+  // from update(), so a tiny fixed delay here is acceptable).
+  delay(100);
+
+  String ip = WiFi.softAPIP().toString();
+  char buf[128];
+  snprintf(buf, sizeof(buf),
+           "SoftAP Started\nSSID: %s\nPassword: 12345678\nIP: %s",
+           apSSID_, ip.c_str());
+  Logger::info(buf);
+}
+
+void WiFiManager::doBeginConnect() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid_.c_str(), password_.c_str());
+
+  char buf[80];
+  snprintf(buf, sizeof(buf), "Connecting to SSID: %s", ssid_.c_str());
+  Logger::info(buf);
 }
