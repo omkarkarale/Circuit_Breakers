@@ -8,6 +8,7 @@
 #include <LiquidCrystal_I2C.h>
 #include <DFRobotDFPlayerMini.h>
 #include <Stepper.h>
+#include <SoftwareSerial.h>
 
 #include "Config.h"
 #include "Logger.h"
@@ -22,11 +23,7 @@ void DeviceService::begin(WiFiManager* wifi, StorageManager* storage) {
   startMs_ = millis();
 
   // 1. Initialize Wire (I2C) and LCD Display
-  #if defined(ESP8266)
-    Wire.begin(Config::Pins::I2C_SDA, Config::Pins::I2C_SCL);
-  #else
-    Wire.begin();
-  #endif
+  Wire.begin(Config::Pins::I2C_SDA, Config::Pins::I2C_SCL);
 
   if (Config::lcdSupported) {
     lcd_ = new LiquidCrystal_I2C(0x27, 16, 2);
@@ -58,25 +55,15 @@ void DeviceService::begin(WiFiManager* wifi, StorageManager* storage) {
 
   // 4. Initialize DFPlayer MP3 Buzzer
   if (Config::speakerSupported) {
-    #if defined(ESP8266)
-      Serial1.begin(9600); // ESP8266 standard Tx serial
-      player_ = new DFRobotDFPlayerMini();
-      if (!player_->begin(Serial1)) {
-        Logger::error("DFPlayer NOT detected!");
-      } else {
-        player_->volume(25);
-        Logger::info("DFPlayer ready");
-      }
-    #else
-      Serial2.begin(9600, SERIAL_8N1, Config::Pins::DFPLAYER_RX, Config::Pins::DFPLAYER_TX);
-      player_ = new DFRobotDFPlayerMini();
-      if (!player_->begin(Serial2)) {
-        Logger::error("DFPlayer NOT detected!");
-      } else {
-        player_->volume(25);
-        Logger::info("DFPlayer ready");
-      }
-    #endif
+    SoftwareSerial* dfplayerSerial = new SoftwareSerial(Config::Pins::DFPLAYER_RX, Config::Pins::DFPLAYER_TX);
+    dfplayerSerial->begin(9600);
+    player_ = new DFRobotDFPlayerMini();
+    if (!player_->begin(*dfplayerSerial)) {
+      Logger::error("DFPlayer NOT detected!");
+    } else {
+      player_->volume(25);
+      Logger::info("DFPlayer ready");
+    }
   }
 
   // 5. Initialize IR Sensor Input Pin
@@ -341,7 +328,9 @@ bool DeviceService::triggerDispense(uint8_t slot) {
     }
   }
 
-  Logger::info("Motor turning for slot " + String(slot));
+  char logBuf[64];
+  snprintf(logBuf, sizeof(logBuf), "Motor turning for slot %d", slot);
+  Logger::info(logBuf);
   
   // Run stepper motor clockwise (one full revolution)
   const int stepsPerRev = 2048;
@@ -494,6 +483,12 @@ String DeviceService::buildDiagnosticsJson() const {
 bool DeviceService::connectWifi(const String& ssid, const String& password) {
   if (!wifi_) return false;
   return wifi_->connect(ssid.c_str(), password.c_str());
+}
+
+void DeviceService::saveWifiCredentials(const String& ssid, const String& password) {
+  if (storage_) {
+    storage_->saveWiFi(ssid, password);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

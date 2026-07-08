@@ -59,9 +59,9 @@ namespace Pins {
   // IR Sensor Digital Input Pin
   constexpr int IR_SENSOR = 10;  // SD3
 
-  // DFPlayer Mini Hardware Serial Pins
-  constexpr int DFPLAYER_TX = 16;
-  constexpr int DFPLAYER_RX = 17;
+  // DFPlayer Mini Software Serial Pins
+  constexpr int DFPLAYER_RX = 12; // D6
+  constexpr int DFPLAYER_TX = 13; // D7
 
   // I2C OLED/LCD Display Configuration (0x27)
   constexpr int I2C_SDA = 4;

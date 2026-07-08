@@ -1,6 +1,6 @@
 #pragma once
 
-#include <WebServer.h>
+#include <ESP8266WebServer.h>
 
 #include "Config.h"
 #include "DeviceService.h"
@@ -63,7 +63,7 @@ class ApiManager {
   // OPTIONS preflight (CORS)
   void handleOptions();
 
-  WebServer     server_{Config::DEFAULT_HTTP_PORT};
+  ESP8266WebServer     server_{Config::DEFAULT_HTTP_PORT};
   DeviceService* service_         = nullptr;
   bool          routesConfigured_ = false;
   bool          running_          = false;

@@ -5,8 +5,9 @@
 #include "LogEntry.h"
 #include "Medicine.h"
 #include "Schedule.h"
-#include "StorageManager.h"
 #include "WiFiManager.h"
+
+class StorageManager;
 
 // Maximum in-memory records
 namespace DeviceLimits {
@@ -76,8 +77,18 @@ class DeviceService {
 
   // ── Reboot ────────────────────────────────────────────────────────────────
   void reboot();
+  void saveWifiCredentials(const String& ssid, const String& password);
 
- private:
+  // Array reference getters
+  MedicineRecord* getMedicines() { return medicines_; }
+  ScheduleRecord* getSchedules() { return schedules_; }
+  LogRecord* getLogs() { return logs_; }
+  uint8_t& getMedicineCount() { return medicineCount_; }
+  uint8_t& getScheduleCount() { return scheduleCount_; }
+  uint8_t& getLogHead() { return logHead_; }
+  uint8_t& getLogTotal() { return logTotal_; }
+
+ public:
   // Extended medicine record (superset of the bare Medicine struct)
   struct MedicineRecord {
     Medicine     base;
@@ -104,6 +115,8 @@ class DeviceService {
     char     dosageStr[64]    = "";
     bool     inUse            = false;
   };
+
+ private:
 
   // JSON helpers
   String medicineRecordToJson(const MedicineRecord& rec) const;

@@ -1,14 +1,13 @@
 #include "WiFiManager.h"
 
 #include <cstring>
+#include <cstdio>
 
 #include "Config.h"
 #include "Logger.h"
 
 void WiFiManager::begin() {
-  if (!credentialsSupplied_) {
-    return;
-  }
+  state_ = WiFiManagerState::DISCONNECTED;
 }
 
 void WiFiManager::update() {
@@ -22,10 +21,9 @@ void WiFiManager::update() {
     const unsigned long currentMs = millis();
     if (currentMs - connectionStartedMs_ >= Config::WIFI_CONNECT_TIMEOUT_MS) {
       WiFi.disconnect(false);
-      state_ = WiFiManagerState::FAILED;
-      Logger::warn("WiFi Connection Failed");
+      Logger::warn("WiFi Connection Failed - Starting SoftAP");
+      startAP();
     }
-
     return;
   }
 
@@ -49,7 +47,11 @@ bool WiFiManager::connect(const char* ssid, const char* password) {
 
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid_, password_);
-  Logger::info("WiFi Connecting");
+  
+  char logBuf[64];
+  snprintf(logBuf, sizeof(logBuf), "Connecting to SSID: %s", ssid_);
+  Logger::info(logBuf);
+  
   return true;
 }
 
@@ -60,14 +62,17 @@ void WiFiManager::disconnect() {
 }
 
 bool WiFiManager::isConnected() const {
-  return state_ == WiFiManagerState::CONNECTED && WiFi.status() == WL_CONNECTED;
+  return (state_ == WiFiManagerState::CONNECTED && WiFi.status() == WL_CONNECTED) ||
+         (state_ == WiFiManagerState::AP_MODE); // HTTP endpoints are active in AP mode too
 }
 
 IPAddress WiFiManager::getIPAddress() const {
-  if (!isConnected()) {
+  if (state_ == WiFiManagerState::AP_MODE) {
+    return WiFi.softAPIP();
+  }
+  if (WiFi.status() != WL_CONNECTED) {
     return IPAddress();
   }
-
   return WiFi.localIP();
 }
 
@@ -77,6 +82,20 @@ const char* WiFiManager::getSSID() const {
 
 WiFiManagerState WiFiManager::getState() const {
   return state_;
+}
+
+void WiFiManager::startAP() {
+  state_ = WiFiManagerState::AP_MODE;
+
+  char apSSID[32];
+  snprintf(apSSID, sizeof(apSSID), "MedLink-%04X", (uint16_t)(ESP.getChipId() & 0xFFFF));
+
+  WiFi.mode(WIFI_AP);
+  WiFi.softAP(apSSID, "12345678");
+
+  char logBuf[64];
+  snprintf(logBuf, sizeof(logBuf), "SoftAP Active: SSID=%s IP=%s", apSSID, WiFi.softAPIP().toString().c_str());
+  Logger::info(logBuf);
 }
 
 void WiFiManager::copyCredentials(const char* ssid, const char* password) {

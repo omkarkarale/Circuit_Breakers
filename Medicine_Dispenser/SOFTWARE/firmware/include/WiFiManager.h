@@ -1,27 +1,27 @@
 #pragma once
 
 #include <Arduino.h>
-#include <WiFi.h>
-
-#include "Manager.h"
+#include <ESP8266WiFi.h>
 
 enum class WiFiManagerState {
   DISCONNECTED,
   CONNECTING,
   CONNECTED,
-  FAILED
+  FAILED,
+  AP_MODE
 };
 
-class WiFiManager : public Manager {
+class WiFiManager {
  public:
-  void begin() override;
-  void update() override;
+  void begin();
+  void update();
   bool connect(const char* ssid, const char* password);
   void disconnect();
   bool isConnected() const;
   IPAddress getIPAddress() const;
   const char* getSSID() const;
   WiFiManagerState getState() const;
+  void startAP();
 
  private:
   static constexpr size_t MAX_SSID_LENGTH = 32;

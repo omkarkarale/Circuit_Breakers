@@ -1,6 +1,6 @@
 #include "ApiManager.h"
 
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 
 #include "Logger.h"
 
@@ -160,7 +160,7 @@ void ApiManager::handleRoot() {
   String json = "{";
   json += "\"name\":\"MedLink IoT Smart Dispenser\",";
   json += "\"firmware\":\"1.0.0\",";
-  json += "\"board\":\"ESP32\",";
+  json += "\"board\":\"ESP8266\",";
   json += "\"api\":\"/api/v1\"";
   json += "}";
   sendJson(200, json);
@@ -398,6 +398,7 @@ void ApiManager::handleWifiConnect() {
   }
 
   if (connected) {
+    service_->saveWifiCredentials(ssid, password);
     String ipStr = WiFi.localIP().toString();
     String json = "{";
     json += "\"success\":true,";
