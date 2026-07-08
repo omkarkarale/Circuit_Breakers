@@ -8,7 +8,7 @@ const CONFIG_KEY = 'medlink_config';
 
 const DEFAULT_SETTINGS: Settings = {
   esp32Ip: '192.168.4.1',
-  apiMode: ApiMode.MOCK,
+  apiMode: ApiMode.REAL_DEVICE,
   theme: 'system',
   isDarkMode: false,
   isDeveloperMode: false,

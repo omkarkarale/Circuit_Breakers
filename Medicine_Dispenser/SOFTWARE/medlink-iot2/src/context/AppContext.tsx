@@ -21,6 +21,7 @@ import { INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_HARDWARE, INITIAL_CONFIG } fro
 import { VirtualESP32 } from '../services/VirtualESP32';
 import { NotificationService } from '../services/NotificationService';
 import { triggerHaptic } from '../utils/haptics';
+import { isMedicineActiveOnDay } from '../utils/scheduleUtils';
 
 export interface AppContextType {
   medicines: Medicine[];
@@ -64,6 +65,7 @@ export interface AppContextType {
   restartDevice: () => Promise<void>;
   saveWiFiConfig: (ssid: string, password?: string) => Promise<{ success: boolean; ipAddress: string }>;
   clearLogs: () => void;
+  refreshTelemetry: () => Promise<void>;
   
   // Dispense Lifecycle
   triggerDispense: (med: Medicine) => Promise<void>;
@@ -111,7 +113,9 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   );
 
   const [dashboard, setDashboard] = useState<DashboardResponse | null>(null);
-  const [currentScreen, setCurrentScreenState] = useState<string>('home');
+  const [currentScreen, setCurrentScreenState] = useState<string>(() => 
+    localStorage.getItem('deviceConfigured') === 'true' ? 'home' : 'setup-wizard'
+  );
   const [selectedMedicineId, setSelectedMedicineId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [dispensingState, setDispensingState] = useState<AppContextType['dispensingState']>(null);
@@ -335,7 +339,7 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         lastProcessedMinute.current = minuteStr;
 
         medicines.forEach(med => {
-          if (!med.enabled || med.remainingPills <= 0) return;
+          if (!med.enabled || med.remainingPills <= 0 || !isMedicineActiveOnDay(med, currentClockTime)) return;
           med.schedules.forEach(scheduleStr => {
             const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
             if (!match) return;
@@ -890,7 +894,8 @@ export const AppContextProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         triggerDispense,
         takePill,
         cancelDispense,
-        emergencyDispense
+        emergencyDispense,
+        refreshTelemetry
       }}
     >
       {children}

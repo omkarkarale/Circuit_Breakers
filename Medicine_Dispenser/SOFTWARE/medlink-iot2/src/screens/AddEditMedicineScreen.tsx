@@ -207,31 +207,6 @@ export default function AddEditMedicineView({
             </div>
           </div>
 
-          {/* Medicine Type with corrected icon/text alignment */}
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-bold text-muted dark:text-slate-455">Medicine Type</label>
-            <div className="grid grid-cols-3 gap-3">
-              {(['Tablet', 'Capsule', 'Softgel'] as MedicineType[]).map(t => {
-                const isActive = type === t;
-                const iconName = t === 'Tablet' ? 'tablet' : t === 'Capsule' ? 'medical_services' : 'vaccines';
-                return (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    className={`h-16 flex flex-col items-center justify-center rounded-sm border transition-all active:scale-95 cursor-pointer ${
-                      isActive
-                        ? 'bg-accent border-accent text-white font-bold shadow-sm dark:bg-[#a78bfa] dark:border-[#a78bfa] dark:text-slate-950'
-                        : 'bg-slate-800/10 dark:bg-slate-800/50 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/35'
-                    }`}
-                  >
-                    <span className="material-symbols-outlined text-lg mb-1">{iconName}</span>
-                    <span className="text-[9px] font-bold uppercase tracking-wider">{t}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
 
           {/* Color Pickers */}
           <div className="flex flex-col gap-1">

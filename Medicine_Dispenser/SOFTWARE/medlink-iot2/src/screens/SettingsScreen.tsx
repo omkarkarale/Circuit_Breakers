@@ -171,94 +171,96 @@ export default function SettingsView({
         </section>
 
         {/* Audio Speaker & Chimes Configuration */}
-        <section className="space-y-3">
-          <div className="flex items-center gap-2 px-1 text-muted dark:text-slate-400">
-            <span className="material-symbols-outlined text-base font-bold">volume_up</span>
-            <h3 className="text-[10px] font-bold uppercase tracking-wider">Audio &amp; Sounds</h3>
-          </div>
+        {config.speakerSupported && (
+          <section className="space-y-3">
+            <div className="flex items-center gap-2 px-1 text-muted dark:text-slate-400">
+              <span className="material-symbols-outlined text-base font-bold">volume_up</span>
+              <h3 className="text-[10px] font-bold uppercase tracking-wider">Audio &amp; Sounds</h3>
+            </div>
 
-          <div className="card-glass p-5 space-y-4">
-            {/* Reminder sounds enabled toggle */}
-            <div className="flex justify-between items-center py-1">
-              <div>
-                <h4 className="text-xs font-bold">Dispenser Alarms</h4>
-                <p className="text-[10px] text-muted mt-0.5">Enable speaker sounds on dose reminders</p>
+            <div className="card-glass p-5 space-y-4">
+              {/* Reminder sounds enabled toggle */}
+              <div className="flex justify-between items-center py-1">
+                <div>
+                  <h4 className="text-xs font-bold">Dispenser Alarms</h4>
+                  <p className="text-[10px] text-muted mt-0.5">Enable speaker sounds on dose reminders</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={settings.reminderSoundsEnabled}
+                    onChange={(e) => onUpdateSettings({ reminderSoundsEnabled: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-10 h-5.5 bg-slate-350 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-accent dark:peer-checked:bg-[#7cf994]"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+
+              {/* Notification sound selector */}
+              <div className="flex flex-col gap-1.5 pt-1">
+                <label className="text-[10px] font-bold text-muted dark:text-slate-400">Chime Alert Style</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(['chime', 'ping', 'alarm'] as const).map(soundOpt => {
+                    const isActive = settings.notificationSound === soundOpt;
+                    return (
+                      <button
+                        key={soundOpt}
+                        type="button"
+                        onClick={() => {
+                          onUpdateSettings({ notificationSound: soundOpt });
+                          playLocalPreview(soundOpt, settings.speakerVolume);
+                        }}
+                        className={`py-2 text-[10px] font-bold rounded-sm border uppercase transition-all cursor-pointer ${
+                          isActive
+                            ? 'bg-accent border-accent text-white shadow-sm dark:bg-[#7cf994] dark:border-[#7cf994] dark:text-slate-950'
+                            : 'bg-primary/20 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/40 dark:hover:bg-slate-800'
+                        }`}
+                      >
+                        {soundOpt}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Sound Volume Slider */}
+              <div className="flex flex-col gap-1.5 pt-1">
+                <div className="flex justify-between text-[10px] font-bold text-muted dark:text-slate-400">
+                  <span>Alarm Speaker Volume</span>
+                  <span className="font-mono">{settings.speakerVolume}%</span>
+                </div>
                 <input
-                  type="checkbox"
-                  checked={settings.reminderSoundsEnabled}
-                  onChange={(e) => onUpdateSettings({ reminderSoundsEnabled: e.target.checked })}
-                  className="sr-only peer"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={settings.speakerVolume}
+                  onChange={(e) => onUpdateSettings({ speakerVolume: parseInt(e.target.value) })}
+                  className="w-full h-1 bg-slate-300/40 rounded-sm appearance-none cursor-pointer accent-accent dark:accent-[#7cf994]"
                 />
-                <div className="w-10 h-5.5 bg-slate-350 dark:bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-accent dark:peer-checked:bg-[#7cf994]"></div>
-              </label>
-            </div>
+              </div>
 
-            {/* Notification sound selector */}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <label className="text-[10px] font-bold text-muted dark:text-slate-400">Chime Alert Style</label>
-              <div className="grid grid-cols-3 gap-2">
-                {(['chime', 'ping', 'alarm'] as const).map(soundOpt => {
-                  const isActive = settings.notificationSound === soundOpt;
-                  return (
-                    <button
-                      key={soundOpt}
-                      type="button"
-                      onClick={() => {
-                        onUpdateSettings({ notificationSound: soundOpt });
-                        playLocalPreview(soundOpt, settings.speakerVolume);
-                      }}
-                      className={`py-2 text-[10px] font-bold rounded-sm border uppercase transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-accent border-accent text-white shadow-sm dark:bg-[#7cf994] dark:border-[#7cf994] dark:text-slate-950'
-                          : 'bg-primary/20 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/40 dark:hover:bg-slate-800'
-                      }`}
-                    >
-                      {soundOpt}
-                    </button>
-                  );
-                })}
+              {/* Audio action controls */}
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border-custom dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => playLocalPreview(settings.notificationSound, settings.speakerVolume)}
+                  className="py-2.5 border border-border-custom text-muted hover:bg-accent-light/40 dark:border-slate-800 dark:hover:bg-slate-800 rounded-sm text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold">volume_up</span>
+                  <span>Preview Tone</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleTestHardwareSpeaker}
+                  className="py-2.5 bg-accent-light hover:bg-accent/15 text-accent dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:text-[#7cf994] rounded-sm text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <span className="material-symbols-outlined text-sm font-bold">sensors</span>
+                  <span>Test Speaker</span>
+                </button>
               </div>
             </div>
-
-            {/* Sound Volume Slider */}
-            <div className="flex flex-col gap-1.5 pt-1">
-              <div className="flex justify-between text-[10px] font-bold text-muted dark:text-slate-400">
-                <span>Alarm Speaker Volume</span>
-                <span className="font-mono">{settings.speakerVolume}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={settings.speakerVolume}
-                onChange={(e) => onUpdateSettings({ speakerVolume: parseInt(e.target.value) })}
-                className="w-full h-1 bg-slate-300/40 rounded-sm appearance-none cursor-pointer accent-accent dark:accent-[#7cf994]"
-              />
-            </div>
-
-            {/* Audio action controls */}
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border-custom dark:border-slate-800">
-              <button
-                type="button"
-                onClick={() => playLocalPreview(settings.notificationSound, settings.speakerVolume)}
-                className="py-2.5 border border-border-custom text-muted hover:bg-accent-light/40 dark:border-slate-800 dark:hover:bg-slate-800 rounded-sm text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm font-bold">volume_up</span>
-                <span>Preview Tone</span>
-              </button>
-              <button
-                type="button"
-                onClick={handleTestHardwareSpeaker}
-                className="py-2.5 bg-accent-light hover:bg-accent/15 text-accent dark:bg-slate-800 dark:hover:bg-slate-700/80 dark:text-[#7cf994] rounded-sm text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-sm font-bold">sensors</span>
-                <span>Test Speaker</span>
-              </button>
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
 
         {/* App Settings */}
         <section className="space-y-3">

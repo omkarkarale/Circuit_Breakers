@@ -110,6 +110,12 @@ export default function DiagnosticsView({
       {/* Diagnostics Bento Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
         {hardware.map((hw, idx) => {
+          // Capability check hiding
+          if (hw.id === 'SPEAKER' && !config.speakerSupported) return null;
+          if (hw.id === 'IR_SENSOR' && !config.irSupported) return null;
+          if (hw.id === 'RTC_MODULE' && !config.rtcSupported) return null;
+          if (hw.id === 'OLED_DISPLAY' && !config.lcdSupported) return null;
+
           const isTesting = currentTestingIndex === idx;
           let badgeColor = 'bg-success-bg/50 text-success-custom dark:bg-[#7cf994]/20 dark:text-[#7cf994] border border-success-custom/10';
           let borderColor = 'border-border-custom dark:border-slate-800';

@@ -11,6 +11,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import WiFiSetupScreen from './screens/WiFiSetupScreen';
 import AboutScreen from './screens/AboutScreen';
 import HardwareSimulatorScreen from './screens/HardwareSimulatorScreen';
+import SetupWizardScreen from './screens/SetupWizardScreen';
 
 // Unified Navigation Component
 import BottomNavigation from './components/BottomNavigation';
@@ -43,7 +44,8 @@ export default function App() {
     saveWiFiConfig,
     triggerDispense,
     emergencyDispense,
-    clearLogs
+    clearLogs,
+    refreshTelemetry
   } = useApp();
 
   // Router for screens inside our device mockup
@@ -139,6 +141,16 @@ export default function App() {
             onNavigate={setCurrentScreen}
           />
         );
+      case 'setup-wizard':
+        return (
+          <SetupWizardScreen
+            settings={settings}
+            onUpdateSettings={updateSettings}
+            onNavigate={setCurrentScreen}
+            config={config}
+            onRefreshConfig={refreshTelemetry}
+          />
+        );
       default:
         return <div className="text-center p-4">Screen not found</div>;
     }
@@ -166,27 +178,29 @@ export default function App() {
       )}
 
       {/* Top Custom App Bar matching specs */}
-      <div className="w-full h-14 flex justify-between items-center px-6 py-2 navbar-glass text-light dark:text-white shrink-0 z-40">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-sm bg-accent-light dark:bg-slate-800/80 border border-accent/25 flex items-center justify-center overflow-hidden">
-            <span className="material-symbols-outlined text-accent dark:text-[#a78bfa] text-xl font-bold">medical_services</span>
+      {currentScreen !== 'setup-wizard' && (
+        <div className="w-full h-14 flex justify-between items-center px-6 py-2 navbar-glass text-light dark:text-white shrink-0 z-40">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-sm bg-accent-light dark:bg-slate-800/80 border border-accent/25 flex items-center justify-center overflow-hidden">
+              <span className="material-symbols-outlined text-accent dark:text-[#a78bfa] text-xl font-bold">medical_services</span>
+            </div>
+            <h1 className="text-base font-bold text-accent dark:text-[#a78bfa] font-sans">MedLink IoT</h1>
           </div>
-          <h1 className="text-base font-bold text-accent dark:text-[#a78bfa] font-sans">MedLink IoT</h1>
+          {currentScreen !== 'logs-list' ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentScreen('logs-list');
+              }}
+              className="w-9 h-9 flex items-center justify-center rounded-sm hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-accent dark:text-[#a78bfa] transition-colors cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-xl">notifications</span>
+            </button>
+          ) : (
+            <div className="w-9 h-9" />
+          )}
         </div>
-        {currentScreen !== 'logs-list' ? (
-          <button
-            type="button"
-            onClick={() => {
-              setCurrentScreen('logs-list');
-            }}
-            className="w-9 h-9 flex items-center justify-center rounded-sm hover:bg-slate-200/50 dark:hover:bg-slate-800/50 text-accent dark:text-[#a78bfa] transition-colors cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-xl">notifications</span>
-          </button>
-        ) : (
-          <div className="w-9 h-9" />
-        )}
-      </div>
+      )}
 
       {/* Handheld Scrollable Viewport Canvas */}
       <main className="flex-1 overflow-y-auto px-5 py-4 pb-24 scrollbar-none scroll-smooth relative z-10">
@@ -194,13 +208,15 @@ export default function App() {
       </main>
 
       {/* Handheld Reusable Navigation Bar */}
-      <BottomNavigation
-        currentScreen={currentScreen}
-        onNavigate={(screen) => {
-          setCurrentScreen(screen);
-          setSelectedMedicineId(null);
-        }}
-      />
+      {currentScreen !== 'setup-wizard' && (
+        <BottomNavigation
+          currentScreen={currentScreen}
+          onNavigate={(screen) => {
+            setCurrentScreen(screen);
+            setSelectedMedicineId(null);
+          }}
+        />
+      )}
     </div>
   );
 }

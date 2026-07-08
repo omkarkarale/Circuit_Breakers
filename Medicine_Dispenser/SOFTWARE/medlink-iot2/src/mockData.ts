@@ -56,7 +56,8 @@ export const INITIAL_LOGS: Log[] = [
     medicineName: 'Metformin',
     dosageText: '08:00 AM • 500mg Oral',
     status: 'Taken',
-    detailText: 'Dispensed successfully from SmartBox Slot A2.'
+    detailText: 'Dispensed successfully from SmartBox Slot A2.',
+    category: 'Dispensed'
   },
   {
     id: 'log-2',
@@ -65,7 +66,8 @@ export const INITIAL_LOGS: Log[] = [
     medicineName: 'Lisinopril',
     dosageText: '10:30 AM • 10mg Oral',
     status: 'Cancelled',
-    detailText: 'Manual override by user. Stated "Will take later with meal".'
+    detailText: 'Manual override by user. Stated "Will take later with meal".',
+    category: 'Diagnostics'
   },
   {
     id: 'log-3',
@@ -74,7 +76,8 @@ export const INITIAL_LOGS: Log[] = [
     medicineName: 'Atorvastatin',
     dosageText: '09:00 PM • 20mg Oral',
     status: 'Failed',
-    detailText: 'IoT Device Hardware Jam detected in Slot C1. Please inspect device.'
+    detailText: 'IoT Device Hardware Jam detected in Slot C1. Please inspect device.',
+    category: 'Errors'
   },
   {
     id: 'log-4',
@@ -83,7 +86,8 @@ export const INITIAL_LOGS: Log[] = [
     medicineName: 'Vitamin D3',
     dosageText: '12:00 PM • 1000 IU',
     status: 'Missed',
-    detailText: 'No response to 3 repeated alerts. Window closed at 02:00 PM.'
+    detailText: 'No response to 3 repeated alerts. Window closed at 02:00 PM.',
+    category: 'Missed'
   },
   {
     id: 'log-5',
@@ -92,7 +96,95 @@ export const INITIAL_LOGS: Log[] = [
     medicineName: 'Metformin',
     dosageText: '08:00 AM • 500mg Oral',
     status: 'Taken',
-    detailText: 'Dispensed successfully. Adherence streak: 12 days.'
+    detailText: 'Dispensed successfully. Adherence streak: 12 days.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-6',
+    timestamp: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(), // ~30 hours ago
+    medicineId: 'med-1',
+    medicineName: 'Metformin',
+    dosageText: '08:00 AM • 500mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A2.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-7',
+    timestamp: new Date(Date.now() - 36 * 60 * 60 * 1000).toISOString(), // ~36 hours ago
+    medicineId: 'med-2',
+    medicineName: 'Atorvastatin',
+    dosageText: '09:00 PM • 20mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A1.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-8',
+    timestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // ~48 hours ago
+    medicineName: 'Dispenser Cartridge',
+    dosageText: 'Slot A1 Refilled',
+    status: 'Taken',
+    detailText: 'Cartridge slot A1 refilled with Atorvastatin (40 pills). Logged by companion app.',
+    category: 'Refilled'
+  },
+  {
+    id: 'log-9',
+    timestamp: new Date(Date.now() - 50 * 60 * 60 * 1000).toISOString(), // ~50 hours ago
+    medicineId: 'med-3',
+    medicineName: 'Lisinopril',
+    dosageText: '10:30 AM • 10mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A3.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-10',
+    timestamp: new Date(Date.now() - 54 * 60 * 60 * 1000).toISOString(), // ~54 hours ago
+    medicineName: 'Device Diagnostics',
+    dosageText: 'Self-Test Completed',
+    status: 'Taken',
+    detailText: 'Diagnostics system self-test executed. 8/8 subsystems passed.',
+    category: 'Diagnostics'
+  },
+  {
+    id: 'log-11',
+    timestamp: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(), // ~72 hours ago
+    medicineId: 'med-1',
+    medicineName: 'Metformin',
+    dosageText: '08:00 AM • 500mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A2.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-12',
+    timestamp: new Date(Date.now() - 78 * 60 * 60 * 1000).toISOString(), // ~78 hours ago
+    medicineId: 'med-1',
+    medicineName: 'Metformin',
+    dosageText: '02:00 PM • 500mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A2.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-13',
+    timestamp: new Date(Date.now() - 84 * 60 * 60 * 1000).toISOString(), // ~84 hours ago
+    medicineId: 'med-1',
+    medicineName: 'Metformin',
+    dosageText: '08:00 PM • 500mg Oral',
+    status: 'Taken',
+    detailText: 'Dispensed successfully from SmartBox Slot A2.',
+    category: 'Dispensed'
+  },
+  {
+    id: 'log-14',
+    timestamp: new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString(), // ~96 hours ago
+    medicineName: 'WiFi Stack',
+    dosageText: 'Connected to SSID',
+    status: 'Taken',
+    detailText: 'Network connection established with Home_Network_5G.',
+    category: 'WiFi'
   }
 ];
 
@@ -164,5 +256,9 @@ export const INITIAL_CONFIG: DeviceConfig = {
   firmware: 'v2.4.1-stable',
   internalTemp: 34.2,
   batterySupported: false,
-  tempSupported: false
+  tempSupported: false,
+  rtcSupported: true,
+  speakerSupported: true,
+  irSupported: true,
+  lcdSupported: true
 };

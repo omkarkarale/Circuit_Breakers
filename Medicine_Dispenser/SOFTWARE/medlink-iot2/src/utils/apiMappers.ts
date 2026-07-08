@@ -24,7 +24,13 @@ export function mapDeviceStatus(apiStatus: ApiDeviceStatus): DeviceConfig {
     firmware: apiStatus.firmwareVersion,
     internalTemp: apiStatus.temperature,
     batterySupported: apiStatus.batterySupported !== undefined ? apiStatus.batterySupported : false,
-    tempSupported: apiStatus.tempSupported !== undefined ? apiStatus.tempSupported : false,
+    tempSupported: apiStatus.tempSupported !== undefined 
+      ? apiStatus.tempSupported 
+      : (apiStatus.temperatureSupported !== undefined ? apiStatus.temperatureSupported : false),
+    rtcSupported: apiStatus.rtcSupported !== undefined ? apiStatus.rtcSupported : true,
+    speakerSupported: apiStatus.speakerSupported !== undefined ? apiStatus.speakerSupported : true,
+    irSupported: apiStatus.irSupported !== undefined ? apiStatus.irSupported : true,
+    lcdSupported: apiStatus.lcdSupported !== undefined ? apiStatus.lcdSupported : true,
     epochTime: apiStatus.epochTime,
     ipAddress: apiStatus.ipAddress
   };

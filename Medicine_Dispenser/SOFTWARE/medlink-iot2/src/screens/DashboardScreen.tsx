@@ -1,5 +1,6 @@
 import React from 'react';
 import { Medicine, Log, Settings, DeviceConfig } from '../types';
+import { isMedicineActiveOnDay } from '../utils/scheduleUtils';
 
 interface DashboardViewProps {
   medicines: Medicine[];
@@ -28,39 +29,40 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
   
   const allEvents: DoseEventItem[] = [];
   
-  activeMeds.forEach(med => {
-    med.schedules.forEach(scheduleStr => {
-      const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-      if (!match) return;
+  // Check today and the next 7 days to collect all future events in the next week.
+  for (let offset = 0; offset <= 7; offset++) {
+    const targetDate = new Date(currentTimestamp);
+    targetDate.setDate(targetDate.getDate() + offset);
+    const targetTimestamp = targetDate.getTime();
+    
+    activeMeds.forEach(med => {
+      if (!isMedicineActiveOnDay(med, targetTimestamp)) return;
       
-      let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const ampm = match[3].toUpperCase();
+      med.schedules.forEach(scheduleStr => {
+        const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+        if (!match) return;
+        
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const ampm = match[3].toUpperCase();
 
-      if (ampm === 'PM' && hours < 12) hours += 12;
-      if (ampm === 'AM' && hours === 12) hours = 0;
-      
-      const todayDose = new Date(now);
-      todayDose.setHours(hours, minutes, 0, 0);
-      
-      if (todayDose.getTime() > now.getTime()) {
-        allEvents.push({
-          medicine: med,
-          timeStr: scheduleStr,
-          targetTime: todayDose
-        });
-      } else {
-        const tomorrowDose = new Date(now);
-        tomorrowDose.setDate(tomorrowDose.getDate() + 1);
-        tomorrowDose.setHours(hours, minutes, 0, 0);
-        allEvents.push({
-          medicine: med,
-          timeStr: scheduleStr,
-          targetTime: tomorrowDose
-        });
-      }
+        if (ampm === 'PM' && hours < 12) hours += 12;
+        if (ampm === 'AM' && hours === 12) hours = 0;
+        
+        const doseTime = new Date(targetDate);
+        doseTime.setHours(hours, minutes, 0, 0);
+        
+        // Ensure it is in the future
+        if (doseTime.getTime() > currentTimestamp) {
+          allEvents.push({
+            medicine: med,
+            timeStr: scheduleStr,
+            targetTime: doseTime
+          });
+        }
+      });
     });
-  });
+  }
   
   if (allEvents.length === 0) return null;
   
@@ -105,7 +107,7 @@ export default function DashboardView({
   const completedDosesToday = todayLogs.filter(l => l.status === 'Taken' && l.category !== 'Refilled').length;
   
   const totalScheduledToday = medicines.reduce((acc, curr) => {
-    if (!curr.enabled) return acc;
+    if (!curr.enabled || !isMedicineActiveOnDay(curr, currentClockTime)) return acc;
     return acc + curr.schedules.length;
   }, 0);
 
@@ -118,7 +120,7 @@ export default function DashboardView({
   const now = new Date(currentClockTime);
   const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
 
-  medicines.filter(m => m.enabled).forEach(med => {
+  medicines.filter(m => m.enabled && isMedicineActiveOnDay(m, currentClockTime)).forEach(med => {
     med.schedules.forEach(scheduleStr => {
       const match = scheduleStr.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
       if (!match) return;

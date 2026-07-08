@@ -1,18 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { VirtualESP32, SimulatorState } from '../services/VirtualESP32';
 import { LocalStorageService } from '../services/LocalStorageService';
+import { useApp } from '../hooks/useApp';
 
-interface DeviceSimulatorProps {
-  dispensingState: any; // Checked via VirtualESP32
-  onTakePill: () => void;
-  onCancelDispense: () => void;
-  ssid: string;
-}
-
-export default function DeviceSimulator({
-  onTakePill,
-  onCancelDispense
-}: DeviceSimulatorProps) {
+export default function DeviceSimulator() {
+  const { takePill: onTakePill, cancelDispense: onCancelDispense } = useApp();
   const [simState, setSimState] = useState<SimulatorState>(() => VirtualESP32.getgetState());
 
   useEffect(() => {

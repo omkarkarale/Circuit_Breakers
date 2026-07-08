@@ -1,5 +1,6 @@
 import { Medicine, Log, HardwareComponent, DeviceConfig } from '../types';
 import { INITIAL_MEDICINES, INITIAL_LOGS, INITIAL_HARDWARE, INITIAL_CONFIG } from '../mockData';
+import { isMedicineActiveOnDay } from '../utils/scheduleUtils';
 
 export type MotorState = 'IDLE' | 'ROTATING' | 'JAMMED';
 export type OledState = 'POWER_OFF' | 'BOOTING' | 'CONNECTING_WIFI' | 'SYNCING' | 'READY' | 'DISPENSING' | 'ERROR';
@@ -170,20 +171,21 @@ export class VirtualESP32Class {
     const oldDate = new Date(oldTime);
     const newDate = new Date(newTime);
 
-    // Simple day boundary crossing checks
-    const oldMinutes = oldDate.getHours() * 60 + oldDate.getMinutes();
-    const newMinutes = newDate.getHours() * 60 + newDate.getMinutes();
-
     // We crossed to a new minute (or multiple minutes)
     if (oldDate.getMinutes() !== newDate.getMinutes() || oldDate.getHours() !== newDate.getHours()) {
       this.state.medicines.forEach(med => {
         if (!med.enabled || med.remainingPills <= 0) return;
+        
+        // Ensure the medicine is scheduled to repeat on today's weekday
+        if (!isMedicineActiveOnDay(med, newTime)) return;
 
         med.schedules.forEach(schedule => {
           const schedMinutes = this.parseTimeStringToMinutes(schedule);
           
           // Verify if scheduleMinutes is crossed by transition range
           let crossed = false;
+          const oldMinutes = oldDate.getHours() * 60 + oldDate.getMinutes();
+          const newMinutes = newDate.getHours() * 60 + newDate.getMinutes();
           if (newTime - oldTime >= 24 * 60 * 60 * 1000) {
             // Crossed more than a day - always triggers
             crossed = true;
@@ -318,7 +320,10 @@ export class VirtualESP32Class {
     const today = new Date(this.state.clockTime).toDateString();
     const todayLogs = this.state.logs.filter(l => new Date(l.timestamp).toDateString() === today);
     const completedDoses = todayLogs.filter(l => l.status === 'Taken').length;
-    const totalScheduled = this.state.medicines.reduce((acc, curr) => curr.enabled ? acc + curr.schedules.length : acc, 0);
+    const totalScheduled = this.state.medicines.reduce((acc, curr) => {
+      if (!curr.enabled || !isMedicineActiveOnDay(curr, this.state.clockTime)) return acc;
+      return acc + curr.schedules.length;
+    }, 0);
 
     const displayTotal = totalScheduled > 0 ? totalScheduled : 10;
     const displayCompleted = completedDoses > 0 ? completedDoses : Math.min(8, displayTotal);
@@ -346,6 +351,10 @@ export class VirtualESP32Class {
       heap: this.state.heap,
       batterySupported: false,
       tempSupported: false,
+      rtcSupported: true,
+      speakerSupported: true,
+      irSupported: true,
+      lcdSupported: true,
       epochTime: this.state.clockTime
     } as any; // Allow metadata fields
   }

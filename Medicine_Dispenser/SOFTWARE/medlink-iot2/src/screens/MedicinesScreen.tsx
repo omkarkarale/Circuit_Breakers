@@ -47,11 +47,9 @@ export default function MedicinesView({
               <div
                 key={med.id}
                 onClick={() => onNavigate('add-edit', 'slot-' + slotNum)}
-                className={`card-glass p-5 flex flex-col gap-4 relative transition-all cursor-pointer hover:scale-[1.01] ${
-                  !med.enabled ? 'opacity-70 grayscale-[20%]' : ''
-                }`}
+                className="card-glass p-5 flex flex-col gap-4 relative transition-all cursor-pointer hover:scale-[1.01]"
               >
-                {/* Slot Title & Status Badge */}
+                {/* Slot Title */}
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-2.5">
                     <div
@@ -65,11 +63,6 @@ export default function MedicinesView({
                       <p className="text-[10px] text-muted dark:text-slate-400 mt-1.5 font-semibold uppercase tracking-wider">{med.type}</p>
                     </div>
                   </div>
-                  <span className={`px-2.5 py-0.5 font-bold text-[9px] rounded-sm uppercase tracking-wider ${
-                    med.enabled ? 'bg-success-bg/50 text-success-custom dark:bg-[#7cf994]/20 dark:text-[#7cf994]' : 'bg-accent-light text-muted dark:bg-slate-800 dark:text-slate-400'
-                  }`}>
-                    {med.enabled ? 'Active' : 'Muted'}
-                  </span>
                 </div>
 
                 {/* Details Table Info */}

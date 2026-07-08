@@ -51,6 +51,10 @@ export interface DeviceConfig {
   internalTemp: number; // in Celsius
   batterySupported: boolean;
   tempSupported: boolean;
+  rtcSupported?: boolean;
+  speakerSupported?: boolean;
+  irSupported?: boolean;
+  lcdSupported?: boolean;
   epochTime?: number;
   ipAddress?: string;
 }
@@ -204,6 +208,11 @@ export interface ApiDeviceStatus {
   nextDoseCountdown: number;
   batterySupported?: boolean;
   tempSupported?: boolean;
+  temperatureSupported?: boolean;
+  rtcSupported?: boolean;
+  speakerSupported?: boolean;
+  irSupported?: boolean;
+  lcdSupported?: boolean;
   epochTime?: number;
 }
 

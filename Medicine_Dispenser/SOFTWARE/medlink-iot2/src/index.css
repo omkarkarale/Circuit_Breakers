@@ -22,8 +22,8 @@
   --color-error-custom: #ef4444;
   --color-error-bg: #fef2f2;
   
-  --color-success-custom: #10b981;
-  --color-success-bg: #ecfdf5;
+  --color-success-custom: #8b5cf6;
+  --color-success-bg: #f5f3ff;
 
   --radius-sm: 14px;
   --radius-md: 26px;
@@ -32,43 +32,45 @@
 
 /* Glassmorphism premium card utility */
 @utility card-glass {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(248, 250, 252, 0.65) 100%);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.45);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: var(--radius-sm);
-  box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.06);
+  box-shadow: 0 8px 32px 0 rgba(139, 92, 246, 0.04);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease-out, background-color 200ms ease-out;
 
   .dark & {
-    background: #1f2937; /* Dark theme card background per spec */
-    border: 1px solid rgba(255, 255, 255, 0.08); /* Dark theme borders per spec */
-    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
   }
 
   &:hover {
     transform: translateY(-2px);
-    background-color: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 16px 36px -8px rgba(139, 92, 246, 0.12);
-    border-color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.55);
+    box-shadow: 0 12px 36px 0 rgba(139, 92, 246, 0.08);
+    border-color: rgba(255, 255, 255, 0.8);
 
     .dark & {
-      background-color: #243040;
+      background-color: rgba(15, 23, 42, 0.55);
       border-color: rgba(255, 255, 255, 0.12);
-      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); /* Subtle elevation hover */
+      box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.5);
     }
   }
 }
 
 /* Glassmorphism navigation bar utility */
 @utility navbar-glass {
-  background-color: rgba(255, 255, 255, 0.8);
+  background-color: rgba(255, 255, 255, 0.5);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(139, 92, 246, 0.08);
 
   .dark & {
-    background-color: #111827; /* Dark backgrounds per spec */
+    background-color: rgba(15, 23, 42, 0.5);
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
@@ -190,35 +192,56 @@
 
 /* Global Dark Mode override to support specify colors */
 .dark {
-  background-color: #0f172a; /* spec */
+  background-color: #0b0f19; /* premium deep dark slate background */
   color: #f1f5f9;
-}
-.dark main {
-  background-color: #111827; /* spec */
+  
+  --color-success-custom: #a78bfa;
+  --color-success-bg: rgba(167, 139, 250, 0.15);
+  --color-accent: #a78bfa;
+  --color-accent-light: rgba(167, 139, 250, 0.1);
 }
 
 /* Retrofit legacy green accents (#7cf994) to premium minimal purple */
-[class*="[#7cf994]"] {
+
+/* 1. Light Mode Text */
+[class*="text-[#7cf994]"]:not([class*="dark:text-[#7cf994]"]) {
   color: var(--color-accent) !important;
 }
-.dark [class*="[#7cf994]"] {
+
+/* 2. Dark Mode Text */
+.dark [class*="dark:text-[#7cf994]"] {
   color: #a78bfa !important;
 }
-[class*="bg-[#7cf994]"] {
+
+/* 3. Light Mode Solid BG */
+[class*="bg-[#7cf994]"]:not([class*="dark:bg-[#7cf994]"]) {
   background-color: var(--color-accent) !important;
+  color: #ffffff !important;
 }
-.dark [class*="bg-[#7cf994]"] {
+
+/* 4. Dark Mode Solid BG */
+.dark [class*="dark:bg-[#7cf994]"]:not([class*="/20"]) {
   background-color: #a78bfa !important;
+  color: #0f172a !important; /* Ensure dark text color for readability on light purple */
 }
-[class*="border-[#7cf994]"] {
+
+/* 5. Dark Mode 20% Opacity BG */
+.dark [class*="dark:bg-[#7cf994]/20"] {
+  background-color: rgba(167, 139, 250, 0.2) !important;
+}
+
+/* 6. Border Retrofits */
+[class*="border-[#7cf994]"]:not([class*="dark:border-[#7cf994]"]) {
   border-color: var(--color-accent) !important;
 }
-.dark [class*="border-[#7cf994]"] {
+.dark [class*="dark:border-[#7cf994]"] {
   border-color: #a78bfa !important;
 }
-[class*="accent-[#7cf994]"] {
+
+/* 7. Accent Retrofits */
+[class*="accent-[#7cf994]"]:not([class*="dark:accent-[#7cf994]"]) {
   accent-color: var(--color-accent) !important;
 }
-.dark [class*="accent-[#7cf994]"] {
+.dark [class*="dark:accent-[#7cf994]"] {
   accent-color: #a78bfa !important;
 }
