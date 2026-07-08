@@ -16,6 +16,33 @@ constexpr uint8_t MAX_SCHEDULES = 30;
 constexpr uint8_t MAX_LOGS      = 50;
 }  // namespace DeviceLimits
 
+// Extended medicine record (superset of the bare Medicine struct)
+struct MedicineRecord {
+  Medicine     base;
+  char         colorHex[8]       = "#ffffff";
+  char         type[16]          = "Tablet";
+  char         dosage[64]        = "";
+  char         repeatPattern[16] = "Daily";
+  uint16_t     maxCapacity       = 30;
+  uint8_t      dosePerReminder   = 1;
+  uint32_t     lastTakenTime     = 0;
+  uint8_t      streakDays        = 0;
+};
+
+// Extended schedule record
+struct ScheduleRecord {
+  Schedule base;
+  bool     inUse = false;
+};
+
+// Extended log record
+struct LogRecord {
+  LogEntry base;
+  char     medicineName[32] = "";
+  char     dosageStr[64]    = "";
+  bool     inUse            = false;
+};
+
 /**
  * DeviceService
  *
@@ -87,34 +114,6 @@ class DeviceService {
   uint8_t& getScheduleCount() { return scheduleCount_; }
   uint8_t& getLogHead() { return logHead_; }
   uint8_t& getLogTotal() { return logTotal_; }
-
- public:
-  // Extended medicine record (superset of the bare Medicine struct)
-  struct MedicineRecord {
-    Medicine     base;
-    char         colorHex[8]       = "#ffffff";
-    char         type[16]          = "Tablet";
-    char         dosage[64]        = "";
-    char         repeatPattern[16] = "Daily";
-    uint16_t     maxCapacity       = 30;
-    uint8_t      dosePerReminder   = 1;
-    uint32_t     lastTakenTime     = 0;
-    uint8_t      streakDays        = 0;
-  };
-
-  // Extended schedule record
-  struct ScheduleRecord {
-    Schedule base;
-    bool     inUse = false;
-  };
-
-  // Extended log record
-  struct LogRecord {
-    LogEntry base;
-    char     medicineName[32] = "";
-    char     dosageStr[64]    = "";
-    bool     inUse            = false;
-  };
 
  private:
 

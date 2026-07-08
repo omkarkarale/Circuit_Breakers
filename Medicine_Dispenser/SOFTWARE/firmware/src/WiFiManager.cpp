@@ -93,7 +93,7 @@ void WiFiManager::startAP() {
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apSSID, "12345678");
 
-  char logBuf[64];
+  char logBuf[128];
   snprintf(logBuf, sizeof(logBuf), "SoftAP Active: SSID=%s IP=%s", apSSID, WiFi.softAPIP().toString().c_str());
   Logger::info(logBuf);
 }

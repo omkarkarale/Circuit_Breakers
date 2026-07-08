@@ -12,6 +12,7 @@
 
 #include "Config.h"
 #include "Logger.h"
+#include "StorageManager.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lifecycle
@@ -186,7 +187,7 @@ uint8_t DeviceService::addMedicine(const String& name, uint8_t slot,
 
     medicineCount_++;
 
-    if (storage_) storage_->saveMedicines();
+    if (storage_) storage_->saveMedicines(medicines_, DeviceLimits::MAX_MEDICINES);
 
     Logger::info("Medicine added");
     return newId;
@@ -214,7 +215,7 @@ bool DeviceService::updateMedicine(uint8_t id, const String& name, uint8_t slot,
     strncpy(medicines_[i].dosage,        dosage.c_str(),        sizeof(medicines_[i].dosage)        - 1);
     strncpy(medicines_[i].repeatPattern, repeatPattern.c_str(), sizeof(medicines_[i].repeatPattern) - 1);
 
-    if (storage_) storage_->saveMedicines();
+    if (storage_) storage_->saveMedicines(medicines_, DeviceLimits::MAX_MEDICINES);
     return true;
   }
   return false;
@@ -225,7 +226,7 @@ bool DeviceService::deleteMedicine(uint8_t id) {
     if (medicines_[i].base.id != id) continue;
     medicines_[i] = MedicineRecord{};  // zero-reset
     if (medicineCount_ > 0) medicineCount_--;
-    if (storage_) storage_->saveMedicines();
+    if (storage_) storage_->saveMedicines(medicines_, DeviceLimits::MAX_MEDICINES);
     return true;
   }
   return false;
@@ -255,7 +256,7 @@ bool DeviceService::addSchedule(uint8_t medicineId, uint8_t hour,
     schedules_[i].base.enabled    = enabled;
     schedules_[i].inUse           = true;
     scheduleCount_++;
-    if (storage_) storage_->saveSchedules();
+    if (storage_) storage_->saveSchedules(schedules_, DeviceLimits::MAX_SCHEDULES);
     return true;
   }
   return false;
@@ -304,7 +305,7 @@ void DeviceService::appendLog(uint8_t medicineId, uint8_t slot,
   logHead_ = (logHead_ + 1) % DeviceLimits::MAX_LOGS;
   if (logTotal_ < DeviceLimits::MAX_LOGS) logTotal_++;
 
-  if (storage_) storage_->saveLogs();
+  if (storage_) storage_->saveLogs(logs_, DeviceLimits::MAX_LOGS, logHead_, logTotal_);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,7 +394,7 @@ bool DeviceService::triggerDispense(uint8_t slot) {
   }
 
   appendLog(medId, slot, DispenseResult::Success, 4000);
-  if (storage_) storage_->saveMedicines();
+  if (storage_) storage_->saveMedicines(medicines_, DeviceLimits::MAX_MEDICINES);
 
   return true;
 }

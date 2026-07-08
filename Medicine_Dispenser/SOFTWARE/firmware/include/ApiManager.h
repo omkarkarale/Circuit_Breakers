@@ -8,7 +8,7 @@
 /**
  * ApiManager
  *
- * Owns the HTTP server. Registers all /api/v1/* routes and delegates
+ * Owns the HTTP server. Registers all /api/v1/... routes and delegates
  * every request to DeviceService. Does NOT contain business logic.
  */
 class ApiManager {

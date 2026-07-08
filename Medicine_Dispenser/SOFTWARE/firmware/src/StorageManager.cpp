@@ -37,7 +37,7 @@ bool StorageManager::loadWiFi(String& ssid, String& password) {
 bool StorageManager::saveMedicines(const void* medicines, size_t count) {
   File f = LittleFS.open("/medicines.txt", "w");
   if (!f) return false;
-  const DeviceService::MedicineRecord* records = (const DeviceService::MedicineRecord*)medicines;
+  const MedicineRecord* records = (const MedicineRecord*)medicines;
   for (size_t i = 0; i < count; i++) {
     if (records[i].base.id == 0) continue;
     f.print("id="); f.println(records[i].base.id);
@@ -66,8 +66,10 @@ bool StorageManager::loadMedicines(void* medicines, size_t maxCount, size_t& loa
   }
   File f = LittleFS.open("/medicines.txt", "r");
   if (!f) return false;
-  DeviceService::MedicineRecord* records = (DeviceService::MedicineRecord*)medicines;
-  memset(records, 0, sizeof(DeviceService::MedicineRecord) * maxCount);
+  MedicineRecord* records = (MedicineRecord*)medicines;
+  for (size_t i = 0; i < maxCount; i++) {
+    records[i] = MedicineRecord{};
+  }
   loadedCount = 0;
   
   size_t idx = 0;
@@ -107,7 +109,7 @@ bool StorageManager::loadMedicines(void* medicines, size_t maxCount, size_t& loa
 bool StorageManager::saveSchedules(const void* schedules, size_t count) {
   File f = LittleFS.open("/schedules.txt", "w");
   if (!f) return false;
-  const DeviceService::ScheduleRecord* records = (const DeviceService::ScheduleRecord*)schedules;
+  const ScheduleRecord* records = (const ScheduleRecord*)schedules;
   for (size_t i = 0; i < count; i++) {
     if (!records[i].inUse) continue;
     f.print("id="); f.println(records[i].base.id);
@@ -129,8 +131,10 @@ bool StorageManager::loadSchedules(void* schedules, size_t maxCount, size_t& loa
   }
   File f = LittleFS.open("/schedules.txt", "r");
   if (!f) return false;
-  DeviceService::ScheduleRecord* records = (DeviceService::ScheduleRecord*)schedules;
-  memset(records, 0, sizeof(DeviceService::ScheduleRecord) * maxCount);
+  ScheduleRecord* records = (ScheduleRecord*)schedules;
+  for (size_t i = 0; i < maxCount; i++) {
+    records[i] = ScheduleRecord{};
+  }
   loadedCount = 0;
   
   size_t idx = 0;
@@ -165,7 +169,7 @@ bool StorageManager::saveLogs(const void* logs, size_t count, uint8_t head, uint
   if (!f) return false;
   f.print("head="); f.println(head);
   f.print("total="); f.println(total);
-  const DeviceService::LogRecord* records = (const DeviceService::LogRecord*)logs;
+  const LogRecord* records = (const LogRecord*)logs;
   for (size_t i = 0; i < count; i++) {
     if (!records[i].inUse) continue;
     f.print("timestamp="); f.println(records[i].base.timestamp);
@@ -191,8 +195,10 @@ bool StorageManager::loadLogs(void* logs, size_t maxCount, uint8_t& head, uint8_
   }
   File f = LittleFS.open("/logs.txt", "r");
   if (!f) return false;
-  DeviceService::LogRecord* records = (DeviceService::LogRecord*)logs;
-  memset(records, 0, sizeof(DeviceService::LogRecord) * maxCount);
+  LogRecord* records = (LogRecord*)logs;
+  for (size_t i = 0; i < maxCount; i++) {
+    records[i] = LogRecord{};
+  }
   
   size_t idx = 0;
   while (f.available() && idx < maxCount) {
