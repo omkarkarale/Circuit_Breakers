@@ -344,8 +344,8 @@ export class VirtualESP32Class {
       board: this.state.board,
       uptime: this.state.uptime,
       heap: this.state.heap,
-      batterySupported: true,
-      tempSupported: true,
+      batterySupported: false,
+      tempSupported: false,
       epochTime: this.state.clockTime
     } as any; // Allow metadata fields
   }

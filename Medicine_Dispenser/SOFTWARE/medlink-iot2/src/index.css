@@ -3,26 +3,26 @@
 @variant dark (&:where(.dark, .dark *));
 
 @theme {
-  /* Premium Healthcare Design System Tokens */
+  /* Premium Healthcare Purple Design System */
   --color-primary: #ffffff;
-  --color-accent: #4f46e5; /* Premium Clinical Indigo */
-  --color-accent-light: #eef2ff; /* Extremely soft Indigo-White tint */
-  --color-accent-hover: #4338ca;
-  --color-accent-active: #3730a3;
+  --color-accent: #8b5cf6; /* Clinical Purple Primary */
+  --color-accent-light: #f5f3ff; /* Extremely soft Purple-White tint */
+  --color-accent-hover: #7c3aed;
+  --color-accent-active: #6d28d9;
   
   --color-bg-page: #f8fafc;
   --color-text-charcoal: #0f172a;
   --color-text-light: #1e293b;
   --color-text-muted: #64748b;
   
-  --color-border-custom: rgba(79, 70, 229, 0.08); /* Indigo-tinted soft separator */
-  --color-border-hover: rgba(79, 70, 229, 0.16);
-  --color-border-accent: #4f46e5;
+  --color-border-custom: rgba(139, 92, 246, 0.08); /* Soft Purple border */
+  --color-border-hover: rgba(139, 92, 246, 0.16);
+  --color-border-accent: #8b5cf6;
   
-  --color-error-custom: #e11d48; /* Soft clinical rose-red */
-  --color-error-bg: #fff1f2;
+  --color-error-custom: #ef4444;
+  --color-error-bg: #fef2f2;
   
-  --color-success-custom: #059669; /* Soft clinical emerald */
+  --color-success-custom: #10b981;
   --color-success-bg: #ecfdf5;
 
   --radius-sm: 14px;
@@ -37,25 +37,25 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.5);
   border-radius: var(--radius-sm);
-  box-shadow: 0 10px 30px -10px rgba(79, 70, 229, 0.06);
+  box-shadow: 0 10px 30px -10px rgba(139, 92, 246, 0.06);
   transition: transform 250ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 250ms cubic-bezier(0.16, 1, 0.3, 1), border-color 200ms ease-out, background-color 200ms ease-out;
 
   .dark & {
-    background: linear-gradient(135deg, rgba(17, 24, 39, 0.65) 0%, rgba(15, 23, 42, 0.55) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: #1f2937; /* Dark theme card background per spec */
+    border: 1px solid rgba(255, 255, 255, 0.08); /* Dark theme borders per spec */
     box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.4);
   }
 
   &:hover {
     transform: translateY(-2px);
     background-color: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 16px 36px -8px rgba(79, 70, 229, 0.12);
+    box-shadow: 0 16px 36px -8px rgba(139, 92, 246, 0.12);
     border-color: rgba(255, 255, 255, 0.7);
 
     .dark & {
-      background-color: rgba(17, 24, 39, 0.75);
-      border-color: rgba(255, 255, 255, 0.13);
-      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.55);
+      background-color: #243040;
+      border-color: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 12px 30px -5px rgba(0, 0, 0, 0.5); /* Subtle elevation hover */
     }
   }
 }
@@ -65,11 +65,11 @@
   background-color: rgba(255, 255, 255, 0.8);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(79, 70, 229, 0.08);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.08);
 
   .dark & {
-    background-color: rgba(15, 23, 42, 0.8);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    background-color: #111827; /* Dark backgrounds per spec */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 }
 
@@ -88,11 +88,11 @@
   gap: 0.5rem;
   border: 1.5px solid transparent;
   user-select: none;
-  min-height: 48px; /* Accessibility click target */
+  min-height: 48px;
 
   &:hover {
     background-color: var(--color-accent-hover);
-    box-shadow: 0 8px 20px -6px rgba(79, 70, 229, 0.35);
+    box-shadow: 0 8px 20px -6px rgba(139, 92, 246, 0.35);
   }
 
   &:active {
@@ -117,12 +117,12 @@
   justify-content: center;
   gap: 0.5rem;
   user-select: none;
-  min-height: 48px; /* Accessibility click target */
+  min-height: 48px;
 
   .dark & {
-    background-color: rgba(15, 23, 42, 0.25);
+    background-color: rgba(31, 41, 55, 0.4);
     border-color: var(--color-accent);
-    color: var(--color-accent);
+    color: #a78bfa;
   }
 
   &:hover {
@@ -139,7 +139,7 @@
   font-family: inherit;
   font-size: 0.9375rem;
   padding: 0.75rem 1rem;
-  border: 1px solid rgba(79, 70, 229, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.15);
   border-radius: var(--radius-sm);
   background-color: rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(10px);
@@ -148,17 +148,17 @@
   transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
   outline: none;
   width: 100%;
-  min-height: 48px; /* Accessibility click target */
+  min-height: 48px;
 
   .dark & {
-    background-color: rgba(15, 23, 42, 0.35);
-    border: 1px solid rgba(255, 255, 255, 0.09);
+    background-color: rgba(31, 41, 55, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     color: #ffffff;
   }
 
   &:focus {
     border-color: var(--color-border-accent);
-    box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.15);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.15);
   }
 }
 
@@ -186,4 +186,39 @@
   border: 2px solid var(--color-accent);
   border-radius: 50%;
   animation: pulse-ring 1.5s infinite;
+}
+
+/* Global Dark Mode override to support specify colors */
+.dark {
+  background-color: #0f172a; /* spec */
+  color: #f1f5f9;
+}
+.dark main {
+  background-color: #111827; /* spec */
+}
+
+/* Retrofit legacy green accents (#7cf994) to premium minimal purple */
+[class*="[#7cf994]"] {
+  color: var(--color-accent) !important;
+}
+.dark [class*="[#7cf994]"] {
+  color: #a78bfa !important;
+}
+[class*="bg-[#7cf994]"] {
+  background-color: var(--color-accent) !important;
+}
+.dark [class*="bg-[#7cf994]"] {
+  background-color: #a78bfa !important;
+}
+[class*="border-[#7cf994]"] {
+  border-color: var(--color-accent) !important;
+}
+.dark [class*="border-[#7cf994]"] {
+  border-color: #a78bfa !important;
+}
+[class*="accent-[#7cf994]"] {
+  accent-color: var(--color-accent) !important;
+}
+.dark [class*="accent-[#7cf994]"] {
+  accent-color: #a78bfa !important;
 }

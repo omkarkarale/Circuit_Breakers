@@ -1,9 +1,10 @@
 import React from 'react';
-import { Medicine, Log, Settings } from '../types';
+import { Medicine, Log, Settings, DeviceConfig } from '../types';
 
 interface DashboardViewProps {
   medicines: Medicine[];
   logs: Log[];
+  config: DeviceConfig;
   onNavigate: (screen: string, selectedId?: string) => void;
   onRefillAll: () => void;
   onTriggerDispense: (med: Medicine) => void;
@@ -39,7 +40,6 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
       if (ampm === 'PM' && hours < 12) hours += 12;
       if (ampm === 'AM' && hours === 12) hours = 0;
       
-      // Candidate today
       const todayDose = new Date(now);
       todayDose.setHours(hours, minutes, 0, 0);
       
@@ -50,7 +50,6 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
           targetTime: todayDose
         });
       } else {
-        // Candidate tomorrow
         const tomorrowDose = new Date(now);
         tomorrowDose.setDate(tomorrowDose.getDate() + 1);
         tomorrowDose.setHours(hours, minutes, 0, 0);
@@ -65,13 +64,11 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
   
   if (allEvents.length === 0) return null;
   
-  // Sort chronologically
   allEvents.sort((a, b) => a.targetTime.getTime() - b.targetTime.getTime());
   
   const nextTargetTime = allEvents[0].targetTime;
   const nextTimeStr = allEvents[0].timeStr;
   
-  // Group all events that occur at this same target time
   const items = allEvents.filter(e => Math.abs(e.targetTime.getTime() - nextTargetTime.getTime()) < 1000);
   
   return {
@@ -84,13 +81,13 @@ function getNextDoseEvent(medicines: Medicine[], currentTimestamp: number) {
 export default function DashboardView({
   medicines,
   logs,
+  config,
   onNavigate,
   onRefillAll,
   currentClockTime,
   settings
 }: DashboardViewProps) {
 
-  // Live Next Dose Calculation based on currentClockTime
   const nextDoseEvent = getNextDoseEvent(medicines, currentClockTime);
 
   const getCountdownString = () => {
@@ -103,7 +100,6 @@ export default function DashboardView({
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   };
 
-  // Audited Adherence Calculation (Real logs and schedules)
   const todayString = new Date(currentClockTime).toDateString();
   const todayLogs = logs.filter(l => new Date(l.timestamp).toDateString() === todayString);
   const completedDosesToday = todayLogs.filter(l => l.status === 'Taken' && l.category !== 'Refilled').length;
@@ -115,7 +111,7 @@ export default function DashboardView({
 
   const progressPercent = totalScheduledToday > 0 
     ? Math.round((completedDosesToday / totalScheduledToday) * 100)
-    : 100; // default to 100 if no active schedules are set
+    : 100;
 
   // Generate today's schedule list
   const todaySchedules: { timeStr: string; timeValue: number; medName: string; status: 'Taken' | 'Missed' | 'Pending'; color: string; slot: number }[] = [];
@@ -159,14 +155,13 @@ export default function DashboardView({
     });
   });
 
-  // Sort today's schedules by time
   todaySchedules.sort((a, b) => a.timeValue - b.timeValue);
 
   return (
     <div className="space-y-6 text-light dark:text-white">
-      {/* Next Dose Card (Hero Card with Glass Overlays) */}
+      {/* Next Dose Card */}
       {nextDoseEvent ? (
-        <section className="bg-gradient-to-br from-accent/95 to-accent-hover/90 dark:from-accent/70 dark:to-accent-hover/60 border border-white/20 dark:border-white/10 text-white rounded-sm p-6 relative overflow-hidden shadow-lg">
+        <section className="bg-gradient-to-br from-accent/95 to-accent-hover/90 dark:from-accent/70 dark:to-accent-hover/60 border border-white/25 text-white rounded-sm p-6 relative overflow-hidden shadow-lg animate-fade-in">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-10 -mt-10 blur-xl"></div>
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-8 -mb-8 blur-lg"></div>
 
@@ -182,7 +177,6 @@ export default function DashboardView({
               </div>
             </div>
 
-            {/* Medicines List at this time */}
             <div className="mt-3 space-y-2">
               {nextDoseEvent.items.map(item => (
                 <div key={item.medicine.id} className="flex justify-between items-center bg-white/10 px-3.5 py-2.5 rounded-sm border border-white/5 backdrop-blur-xs">
@@ -231,11 +225,11 @@ export default function DashboardView({
                 <span className="font-mono font-bold text-muted w-14">{sched.timeStr}</span>
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: sched.color }}></span>
                 <span className="font-semibold text-light dark:text-white">{sched.medName}</span>
-                <span className="text-[9px] text-muted dark:text-slate-500 font-medium">Slot {sched.slot}</span>
+                <span className="text-[9px] text-muted dark:text-slate-550 font-medium">Slot {sched.slot}</span>
               </div>
               <div>
                 {sched.status === 'Taken' ? (
-                  <span className="text-success-custom dark:text-[#7cf994] font-bold flex items-center gap-1">
+                  <span className="text-success-custom dark:text-green-400 font-bold flex items-center gap-1">
                     <span className="material-symbols-outlined text-sm">check_circle</span>
                     <span>Taken</span>
                   </span>
@@ -261,14 +255,14 @@ export default function DashboardView({
 
       {/* Daily Adherence */}
       <section className="card-glass p-5 flex items-center justify-around gap-4">
-        <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
+        <div className="relative w-22 h-22 flex items-center justify-center shrink-0">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
             <circle
               cx="18"
               cy="18"
               r="15.915"
               fill="none"
-              stroke="rgba(15, 118, 110, 0.1)"
+              stroke="rgba(79, 70, 229, 0.06)"
               strokeWidth="3.2"
               className="dark:stroke-slate-800/80"
             />
@@ -281,24 +275,24 @@ export default function DashboardView({
               strokeWidth="3.2"
               strokeDasharray={`${progressPercent} 100`}
               strokeLinecap="round"
-              className="transition-all duration-1000 dark:stroke-[#7cf994]"
+              className="transition-all duration-1000 dark:stroke-[#a78bfa]"
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className="text-xl font-bold text-accent dark:text-[#7cf994] font-mono leading-none">
+            <span className="text-lg font-bold text-accent dark:text-[#a78bfa] font-mono leading-none">
               {completedDosesToday}/{totalScheduledToday}
             </span>
-            <span className="text-[10px] text-muted dark:text-slate-400 font-medium mt-0.5">Doses</span>
+            <span className="text-[9px] text-muted dark:text-slate-400 font-medium mt-0.5">Doses</span>
           </div>
         </div>
         <div className="flex-grow">
-          <h4 className="text-base font-bold">Daily Adherence</h4>
-          <p className="text-xs text-muted dark:text-slate-400 mt-1.5 leading-relaxed">
+          <h4 className="text-sm font-bold">Daily Adherence</h4>
+          <p className="text-xs text-muted dark:text-slate-400 mt-1 leading-relaxed">
             {progressPercent >= 80 
               ? "Excellent adherence! Dispense logs are verified and safe." 
               : "Keep up with your schedules to ensure medication compliance."}
           </p>
-          <div className="mt-2.5 text-[10px] font-bold text-accent dark:text-[#7cf994] bg-accent-light dark:bg-slate-800/80 border border-accent/15 px-2.5 py-0.5 rounded-sm inline-block">
+          <div className="mt-2 text-[10px] font-bold text-accent dark:text-[#a78bfa] bg-accent-light dark:bg-slate-800/80 border border-accent/15 px-2.5 py-0.5 rounded-sm inline-block">
             {progressPercent}% Correct
           </div>
         </div>
@@ -307,10 +301,10 @@ export default function DashboardView({
       {/* Medicine Inventory */}
       <section className="space-y-3">
         <div className="flex justify-between items-center px-1">
-          <h3 className="text-base font-bold">Medicine Inventory</h3>
+          <h3 className="text-sm font-bold">Medicine Inventory</h3>
           <button
             onClick={onRefillAll}
-            className="text-xs font-bold text-accent dark:text-[#7cf994] hover:underline cursor-pointer"
+            className="text-xs font-bold text-accent dark:text-[#a78bfa] hover:underline cursor-pointer"
           >
             Refill All
           </button>
@@ -342,7 +336,7 @@ export default function DashboardView({
                 <div className="w-full bg-accent-light dark:bg-slate-850 rounded-full h-2 overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all duration-500 ${
-                      isLow ? 'bg-error-custom' : 'bg-accent dark:bg-[#7cf994]'
+                      isLow ? 'bg-error-custom' : 'bg-accent dark:bg-[#a78bfa]'
                     }`}
                     style={{ width: `${remainingPercent}%` }}
                   ></div>
@@ -358,10 +352,10 @@ export default function DashboardView({
 
       {/* Recent Activity */}
       <section className="space-y-3">
-        <h3 className="text-base font-bold">Recent Activity</h3>
+        <h3 className="text-sm font-bold">Recent Activity</h3>
         <div className="card-glass p-4 space-y-4 relative before:absolute before:left-6 before:top-6 before:bottom-6 before:w-[2px] before:bg-accent-light dark:before:bg-slate-800/80">
           {logs.filter(l => l.category !== 'Refilled').slice(0, 3).map((log) => {
-            let statusColor = 'bg-accent dark:bg-[#7cf994] text-white dark:text-slate-900';
+            let statusColor = 'bg-accent dark:bg-[#a78bfa] text-white dark:text-slate-900';
             let iconName = 'check_circle';
 
             if (log.status === 'Missed') {
@@ -378,7 +372,7 @@ export default function DashboardView({
             const logTime = new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
             return (
-              <div key={log.id} className="flex gap-4 relative z-10 items-start">
+              <div key={log.id} className="flex gap-4 relative z-10 items-start animate-fade-in">
                 <div className={`w-6 h-6 rounded-full ${statusColor} flex items-center justify-center ring-4 ring-white dark:ring-slate-900 shrink-0 shadow-sm`}>
                   <span className="material-symbols-outlined text-[13px] fill-icon">{iconName}</span>
                 </div>
@@ -395,27 +389,50 @@ export default function DashboardView({
         </div>
       </section>
 
-      {/* Dispenser Connection status card (moved from top to bottom of Dashboard) */}
-      <section className="card-glass p-4 flex items-center justify-between mt-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-            settings.apiMode === 'REAL_DEVICE'
-              ? 'bg-accent-light/40 text-accent dark:bg-accent/20 dark:text-[#7cf994]'
-              : 'bg-accent-light/40 text-accent dark:bg-accent/20 dark:text-[#7cf994]'
-          }`}>
-            <span className="material-symbols-outlined text-2xl">
-              {settings.apiMode === 'REAL_DEVICE' ? 'dns' : 'wifi'}
-            </span>
+      {/* Connection & Telemetry Status (battery/temp hidden if not supported by firmware) */}
+      <section className="card-glass p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-full flex items-center justify-center bg-accent-light/40 text-accent dark:bg-accent/20 dark:text-[#a78bfa] shrink-0">
+              <span className="material-symbols-outlined text-xl">
+                {settings.apiMode === 'REAL_DEVICE' ? 'dns' : 'wifi'}
+              </span>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold">
+                {settings.apiMode === 'REAL_DEVICE' ? 'ESP8266 IoT Hub Connected' : 'Simulated Dispenser Online'}
+              </h3>
+              <p className="text-[9px] text-muted dark:text-slate-400 mt-1 font-semibold uppercase tracking-wider font-mono">
+                IP: {settings.esp32Ip || '192.168.4.1'} • RSSI: {config.strength ? `${-100 + config.strength * 15} dBm` : 'Offline'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-base font-bold">
-              {settings.apiMode === 'REAL_DEVICE' ? 'ESP32 IoT Hub Connected' : 'Simulated Dispenser Online'}
-            </h3>
-            <p className="text-xs text-muted dark:text-slate-400">
-              API Mode: <span className="font-mono font-bold">{settings.apiMode || 'SIMULATOR'}</span> • IP: {settings.esp32Ip || '192.168.4.1'}
-            </p>
-          </div>
+          <span className={`w-2.5 h-2.5 rounded-full ${config.connected ? 'bg-success-custom animate-pulse' : 'bg-error-custom'}`}></span>
         </div>
+
+        {/* Dynamic Telemetry row (Battery & Temperature) — ONLY show if supported by firmware */}
+        {(config.batterySupported || config.tempSupported) && (
+          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border-custom dark:border-slate-800">
+            {config.batterySupported && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-primary/45 dark:bg-slate-900/30 text-xs">
+                <span className="material-symbols-outlined text-muted text-base">battery_charging_full</span>
+                <div>
+                  <p className="text-[9px] text-muted uppercase font-bold">Battery</p>
+                  <p className="font-bold font-mono">{config.battery}%</p>
+                </div>
+              </div>
+            )}
+            {config.tempSupported && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-sm bg-primary/45 dark:bg-slate-900/30 text-xs">
+                <span className="material-symbols-outlined text-muted text-base">thermostat</span>
+                <div>
+                  <p className="text-[9px] text-muted uppercase font-bold">Internal Temp</p>
+                  <p className="font-bold font-mono">{config.internalTemp}°C</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

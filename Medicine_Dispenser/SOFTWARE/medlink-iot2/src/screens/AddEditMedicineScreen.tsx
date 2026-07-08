@@ -58,34 +58,35 @@ export default function AddEditMedicineView({
   const [remaining, setRemaining] = useState(existing?.remainingPills || 30);
   const [maxPills] = useState(existing?.maxPills || 30);
   const [dose, setDose] = useState(existing?.dosePerReminder || 1);
-  
-  // Advanced schedule selector states
-  const [scheduleType, setScheduleType] = useState<'Daily' | 'Alternate' | 'Interval' | 'Weekdays'>(() => {
-    if (!existing) return 'Daily';
-    const pat = existing.repeatPattern;
-    if (pat === 'Daily') return 'Daily';
-    if (pat === 'Weekdays' || pat === 'Alternate Days') return 'Alternate';
-    if (pat.startsWith('Every')) return 'Interval';
-    return 'Weekdays';
-  });
 
-  const [intervalDays, setIntervalDays] = useState<number>(() => {
-    if (existing && existing.repeatPattern.startsWith('Every')) {
-      const match = existing.repeatPattern.match(/\d+/);
-      return match ? parseInt(match[0]) : 3;
-    }
-    return 3;
-  });
-
+  // Weekdays multiselect state
   const [selectedWeekdays, setSelectedWeekdays] = useState<string[]>(() => {
-    if (!existing) return [];
+    if (!existing) return WEEKDAYS.map(d => d.value); // default daily
     const pat = existing.repeatPattern;
-    if (pat === 'Daily' || pat === 'Alternate Days' || pat.startsWith('Every')) return [];
-    return pat.split(', ').map(d => d.trim());
+    if (pat === 'Daily') return WEEKDAYS.map(d => d.value);
+    return pat.split(', ').map(d => d.trim()).filter(d => WEEKDAYS.some(w => w.value === d));
   });
 
   const [schedules, setSchedules] = useState<string[]>(existing?.schedules || ['08:00 AM']);
   const [newTime, setNewTime] = useState('08:00');
+
+  const isDaily = selectedWeekdays.length === 7;
+
+  const handleToggleDaily = () => {
+    if (isDaily) {
+      setSelectedWeekdays([]);
+    } else {
+      setSelectedWeekdays(WEEKDAYS.map(d => d.value));
+    }
+  };
+
+  const toggleWeekday = (day: string) => {
+    if (selectedWeekdays.includes(day)) {
+      setSelectedWeekdays(selectedWeekdays.filter(d => d !== day));
+    } else {
+      setSelectedWeekdays([...selectedWeekdays, day]);
+    }
+  };
 
   // Check if slot X is currently assigned to ANOTHER medicine
   const isSlotOccupied = (sVal: 1 | 2 | 3) => {
@@ -108,14 +109,6 @@ export default function AddEditMedicineView({
     setSchedules(schedules.filter((_, i) => i !== index));
   };
 
-  const toggleWeekday = (day: string) => {
-    if (selectedWeekdays.includes(day)) {
-      setSelectedWeekdays(selectedWeekdays.filter(d => d !== day));
-    } else {
-      setSelectedWeekdays([...selectedWeekdays, day]);
-    }
-  };
-
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -124,6 +117,10 @@ export default function AddEditMedicineView({
     }
     if (schedules.length === 0) {
       alert('Please add at least one reminder time.');
+      return;
+    }
+    if (selectedWeekdays.length === 0) {
+      alert('Please select at least one weekday.');
       return;
     }
 
@@ -135,18 +132,7 @@ export default function AddEditMedicineView({
     }
 
     // Determine final repeatPattern string
-    let repeatPatternStr = 'Daily';
-    if (scheduleType === 'Alternate') {
-      repeatPatternStr = 'Alternate Days';
-    } else if (scheduleType === 'Interval') {
-      repeatPatternStr = `Every ${intervalDays} Days`;
-    } else if (scheduleType === 'Weekdays') {
-      if (selectedWeekdays.length === 0) {
-        alert('Please select at least one weekday.');
-        return;
-      }
-      repeatPatternStr = selectedWeekdays.join(', ');
-    }
+    const repeatPatternStr = selectedWeekdays.length === 7 ? 'Daily' : selectedWeekdays.join(', ');
 
     onSave({
       id: existing?.id,
@@ -168,34 +154,33 @@ export default function AddEditMedicineView({
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6 text-light dark:text-white">
       {/* Configuration Card */}
-      <section className="card-glass p-6 space-y-6">
+      <section className="card-glass p-5 space-y-5">
         <div className="space-y-1">
-          <h2 className="text-lg font-bold">Dispenser Configuration</h2>
-          <p className="text-xs text-muted dark:text-slate-400">Configure physical cartridge slots and medicine profiles.</p>
+          <h2 className="text-base font-bold">Dispenser Configuration</h2>
+          <p className="text-[10px] text-muted dark:text-slate-400">Configure physical cartridge slots and medicine profiles.</p>
         </div>
 
         <div className="space-y-4">
           {/* Medicine Name */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400" htmlFor="med-name">Medicine Name</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted dark:text-slate-455" htmlFor="med-name">Medicine Name</label>
             <input
               id="med-name"
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Paracetamol 500mg"
-              className="input-custom"
+              className="input-custom text-xs"
             />
           </div>
 
           {/* Slot Selection */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400">Dispenser Slot</label>
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted dark:text-slate-455">Dispenser Slot</label>
             <div className="flex gap-2">
               {([1, 2, 3] as const).map(s => {
                 const occupied = isSlotOccupied(s);
                 const isActive = slot === s;
-                // Read-only unless the slot is empty
                 const isReadOnly = occupied && !isActive;
 
                 return (
@@ -206,10 +191,10 @@ export default function AddEditMedicineView({
                     onClick={() => setSlot(s)}
                     className={`flex-1 h-12 rounded-sm font-bold text-xs transition-all active:scale-95 flex flex-col items-center justify-center gap-0.5 ${
                       isActive
-                        ? 'bg-accent text-white shadow dark:bg-[#7cf994] dark:text-slate-950'
+                        ? 'bg-accent text-white shadow dark:bg-[#a78bfa] dark:text-slate-950'
                         : occupied
                         ? 'bg-slate-200/50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-600 border border-transparent cursor-not-allowed'
-                        : 'bg-accent-light/35 border border-border-custom dark:border-slate-800 text-accent dark:text-[#7cf994] hover:bg-accent-light/60 cursor-pointer'
+                        : 'bg-accent-light/35 border border-border-custom dark:border-slate-800 text-accent dark:text-[#a78bfa] hover:bg-accent-light/60 cursor-pointer'
                     }`}
                   >
                     <span>Slot {s}</span>
@@ -222,27 +207,26 @@ export default function AddEditMedicineView({
             </div>
           </div>
 
-          {/* Medicine Type */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400">Medicine Type</label>
+          {/* Medicine Type with corrected icon/text alignment */}
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted dark:text-slate-455">Medicine Type</label>
             <div className="grid grid-cols-3 gap-3">
               {(['Tablet', 'Capsule', 'Softgel'] as MedicineType[]).map(t => {
                 const isActive = type === t;
+                const iconName = t === 'Tablet' ? 'tablet' : t === 'Capsule' ? 'medical_services' : 'vaccines';
                 return (
                   <button
                     key={t}
                     type="button"
                     onClick={() => setType(t)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-sm border transition-all active:scale-95 cursor-pointer ${
+                    className={`h-16 flex flex-col items-center justify-center rounded-sm border transition-all active:scale-95 cursor-pointer ${
                       isActive
-                        ? 'bg-accent border-accent text-white font-bold shadow-sm dark:bg-[#7cf994] dark:border-[#7cf994] dark:text-slate-950'
-                        : 'bg-accent-light/10 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/35 dark:hover:bg-slate-700/50'
+                        ? 'bg-accent border-accent text-white font-bold shadow-sm dark:bg-[#a78bfa] dark:border-[#a78bfa] dark:text-slate-950'
+                        : 'bg-slate-800/10 dark:bg-slate-800/50 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300 hover:bg-accent-light/35'
                     }`}
                   >
-                    <span className="material-symbols-outlined text-lg">
-                      {t === 'Tablet' ? 'tablet' : t === 'Capsule' ? 'capsule' : 'vaccines'}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider font-semibold mt-1">{t}</span>
+                    <span className="material-symbols-outlined text-lg mb-1">{iconName}</span>
+                    <span className="text-[9px] font-bold uppercase tracking-wider">{t}</span>
                   </button>
                 );
               })}
@@ -250,9 +234,9 @@ export default function AddEditMedicineView({
           </div>
 
           {/* Color Pickers */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400">Pill Color Code</label>
-            <div className="flex items-center gap-2.5 h-12">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-bold text-muted dark:text-slate-455">Pill Color Code</label>
+            <div className="flex items-center gap-2 h-10">
               {COLORS.map(c => {
                 const isSelected = color === c;
                 return (
@@ -260,9 +244,9 @@ export default function AddEditMedicineView({
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
-                    className={`w-8 h-8 rounded-full border-2 transition-all cursor-pointer ${
+                    className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${
                       isSelected 
-                        ? 'border-accent dark:border-[#7cf994] scale-110 shadow-md' 
+                        ? 'border-accent dark:border-[#a78bfa] scale-110 shadow-md' 
                         : 'border-transparent'
                     }`}
                     style={{ backgroundColor: c }}
@@ -274,143 +258,98 @@ export default function AddEditMedicineView({
         </div>
       </section>
 
-      {/* Pill Counters */}
-      <section className="card-glass p-6">
-        <div className="grid grid-cols-2 gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400">Pills Loaded</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setRemaining(prev => Math.max(0, prev - 5))}
-                className="w-10 h-10 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-accent-light dark:hover:bg-slate-800 active:scale-95 cursor-pointer"
-              >
-                -5
-              </button>
-              <input
-                type="number"
-                value={remaining}
-                onChange={e => setRemaining(Math.max(0, parseInt(e.target.value) || 0))}
-                className="flex-grow text-center h-10 border border-border-custom dark:border-slate-700 rounded-sm font-mono font-bold text-base bg-primary/40 dark:bg-slate-900/30 text-light dark:text-white focus:border-border-accent focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setRemaining(prev => prev + 5)}
-                className="w-10 h-10 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-accent-light dark:hover:bg-slate-800 active:scale-95 cursor-pointer"
-              >
-                +5
-              </button>
-            </div>
+      {/* Pill Counters — Equal Width Cards & Centered Values */}
+      <section className="grid grid-cols-2 gap-4">
+        <div className="card-glass p-4 flex flex-col items-center justify-center text-center">
+          <span className="text-xs font-bold text-muted dark:text-slate-400 mb-2">Pills Loaded</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setRemaining(prev => Math.max(0, prev - 5))}
+              className="w-8 h-8 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              -
+            </button>
+            <span className="text-lg font-mono font-bold w-12 text-center text-light dark:text-white">{remaining}</span>
+            <button
+              type="button"
+              onClick={() => setRemaining(prev => prev + 5)}
+              className="w-8 h-8 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              +
+            </button>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-muted dark:text-slate-400">Dose Per Alarm</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setDose(prev => Math.max(1, prev - 1))}
-                className="w-10 h-10 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-accent-light dark:hover:bg-slate-800 active:scale-95 cursor-pointer"
-              >
-                -
-              </button>
-              <input
-                type="number"
-                value={dose}
-                onChange={e => setDose(Math.max(1, parseInt(e.target.value) || 1))}
-                className="flex-grow text-center h-10 border border-border-custom dark:border-slate-700 rounded-sm font-mono font-bold text-base bg-primary/40 dark:bg-slate-900/30 text-light dark:text-white focus:border-border-accent focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setDose(prev => prev + 1)}
-                className="w-10 h-10 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-accent-light dark:hover:bg-slate-800 active:scale-95 cursor-pointer"
-              >
-                +
-              </button>
-            </div>
+        <div className="card-glass p-4 flex flex-col items-center justify-center text-center">
+          <span className="text-xs font-bold text-muted dark:text-slate-400 mb-2">Dose per Alarm</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDose(prev => Math.max(1, prev - 1))}
+              className="w-8 h-8 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              -
+            </button>
+            <span className="text-lg font-mono font-bold w-12 text-center text-light dark:text-white">{dose}</span>
+            <button
+              type="button"
+              onClick={() => setDose(prev => prev + 1)}
+              className="w-8 h-8 rounded-full border border-border-custom dark:border-slate-700 flex items-center justify-center text-muted dark:text-slate-300 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            >
+              +
+            </button>
           </div>
         </div>
       </section>
 
-      {/* Advanced Schedule Selector */}
-      <section className="card-glass p-6 space-y-5">
-        <div className="space-y-1">
-          <h2 className="text-base font-bold">Repeat Frequency</h2>
-          <p className="text-xs text-muted dark:text-slate-400">Choose when the dispenser alarms should sound.</p>
+      {/* Repeat Weekdays Grid Selector */}
+      <section className="card-glass p-5 space-y-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-base font-bold">Repeat Frequency</h2>
+            <p className="text-[10px] text-muted dark:text-slate-400 mt-0.5">Determine scheduled active days.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleToggleDaily}
+            className={`px-3 py-1 text-[10px] font-bold rounded-sm border uppercase tracking-wider transition-all cursor-pointer ${
+              isDaily
+                ? 'bg-accent border-accent text-white dark:bg-[#a78bfa] dark:border-[#a78bfa] dark:text-slate-950'
+                : 'bg-primary/20 border-border-custom dark:border-slate-800 text-muted dark:text-slate-300'
+            }`}
+          >
+            Daily
+          </button>
         </div>
 
-        {/* Schedule Type Selection Tabs */}
-        <div className="grid grid-cols-4 gap-1.5 p-1 bg-slate-200/50 dark:bg-slate-900/50 rounded-sm border border-border-custom dark:border-slate-800">
-          {[
-            { key: 'Daily', label: 'Daily' },
-            { key: 'Alternate', label: 'Alt Days' },
-            { key: 'Interval', label: 'Interval' },
-            { key: 'Weekdays', label: 'Weekdays' }
-          ].map(opt => (
-            <button
-              key={opt.key}
-              type="button"
-              onClick={() => setScheduleType(opt.key as any)}
-              className={`py-1.5 text-[9px] font-bold rounded-xs text-center transition-all cursor-pointer ${
-                scheduleType === opt.key
-                  ? 'bg-accent text-white shadow-sm dark:bg-[#7cf994] dark:text-slate-950'
-                  : 'text-muted hover:text-accent dark:hover:text-[#7cf994]'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        {/* Days of week checkbox grid */}
+        <div className="grid grid-cols-4 gap-2">
+          {WEEKDAYS.map(day => {
+            const isSelected = selectedWeekdays.includes(day.value);
+            return (
+              <button
+                key={day.value}
+                type="button"
+                onClick={() => toggleWeekday(day.value)}
+                className={`py-2 rounded-sm text-[10px] font-bold border transition-all cursor-pointer text-center ${
+                  isSelected
+                    ? 'bg-accent border-accent text-white dark:bg-[#a78bfa] dark:border-[#a78bfa] dark:text-slate-950'
+                    : 'bg-primary/20 border-border-custom dark:border-slate-800 text-muted dark:text-slate-350 hover:bg-accent-light/45'
+                }`}
+              >
+                {day.label}
+              </button>
+            );
+          })}
         </div>
-
-        {/* Schedule Details Panels */}
-        {scheduleType === 'Interval' && (
-          <div className="flex flex-col gap-2 p-3 bg-primary/45 dark:bg-slate-900/35 border border-border-custom rounded-sm">
-            <label className="text-[11px] font-bold text-muted dark:text-slate-400">Alarm Interval (In Days)</label>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-semibold text-light dark:text-white">Repeat Alarm Every</span>
-              <input
-                type="number"
-                min="2"
-                max="30"
-                value={intervalDays}
-                onChange={e => setIntervalDays(Math.max(2, parseInt(e.target.value) || 2))}
-                className="w-14 h-8 text-center border border-border-custom dark:border-slate-700 bg-primary/40 text-xs font-bold font-mono rounded-sm text-light dark:text-white focus:outline-none"
-              />
-              <span className="text-xs font-semibold text-light dark:text-white">Days</span>
-            </div>
-          </div>
-        )}
-
-        {scheduleType === 'Weekdays' && (
-          <div className="p-3 bg-primary/45 dark:bg-slate-900/35 border border-border-custom rounded-sm space-y-2">
-            <label className="text-[11px] font-bold text-muted dark:text-slate-400 block">Select Active Weekdays</label>
-            <div className="flex flex-wrap gap-1.5">
-              {WEEKDAYS.map(day => {
-                const isSelected = selectedWeekdays.includes(day.value);
-                return (
-                  <button
-                    key={day.value}
-                    type="button"
-                    onClick={() => toggleWeekday(day.value)}
-                    className={`px-3 py-1.5 rounded-sm text-[10px] font-bold border transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-accent border-accent text-white dark:bg-[#7cf994] dark:border-[#7cf994] dark:text-slate-950'
-                        : 'bg-primary border-border-custom text-muted hover:bg-accent-light/50 dark:border-slate-800'
-                    }`}
-                  >
-                    {day.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
       </section>
 
       {/* Reminder Times Chips */}
-      <section className="card-glass p-6 space-y-4">
+      <section className="card-glass p-5 space-y-4">
         <div className="space-y-1">
           <h2 className="text-base font-bold">Reminder Times</h2>
-          <p className="text-xs text-muted dark:text-slate-400">Manage daily alarm triggers for this slot.</p>
+          <p className="text-[10px] text-muted dark:text-slate-400">Manage daily alarm triggers for this slot.</p>
         </div>
 
         <div className="flex gap-2">
@@ -418,12 +357,12 @@ export default function AddEditMedicineView({
             type="time"
             value={newTime}
             onChange={e => setNewTime(e.target.value)}
-            className="flex-grow h-11 px-3 rounded-sm border border-border-custom dark:border-slate-700 bg-primary/45 dark:bg-slate-900/35 text-xs text-light dark:text-white focus:border-border-accent outline-none"
+            className="flex-grow h-10 px-3 rounded-sm border border-border-custom dark:border-slate-700 bg-primary/45 dark:bg-slate-900/35 text-xs text-light dark:text-white focus:border-border-accent outline-none"
           />
           <button
             type="button"
             onClick={handleAddTime}
-            className="btn-primary rounded-sm text-xs font-bold px-4 h-11 flex items-center justify-center cursor-pointer shrink-0"
+            className="btn-primary rounded-sm text-xs font-bold px-4 h-10 flex items-center justify-center cursor-pointer shrink-0"
           >
             Add Time
           </button>
@@ -434,7 +373,7 @@ export default function AddEditMedicineView({
           {schedules.map((time, index) => (
             <span
               key={index}
-              className="inline-flex items-center gap-1.5 bg-accent-light dark:bg-slate-800 text-accent dark:text-[#7cf994] px-3.5 py-1.5 rounded-full text-xs font-bold border border-accent/15"
+              className="inline-flex items-center gap-1 bg-accent-light dark:bg-slate-800 text-accent dark:text-[#a78bfa] px-3.5 py-1.5 rounded-full text-xs font-bold border border-accent/15 animate-fade-in"
             >
               <span>{time}</span>
               <button
