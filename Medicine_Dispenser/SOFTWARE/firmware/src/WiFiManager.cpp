@@ -7,10 +7,38 @@
 #include "Logger.h"
 
 void WiFiManager::begin() {
-  state_ = WiFiManagerState::DISCONNECTED;
+  state_ = WiFiManagerState::BOOT;
+  credentialsSupplied_ = false;
+}
+
+void WiFiManager::setNoCredentials() {
+  state_ = WiFiManagerState::NO_CREDENTIALS;
 }
 
 void WiFiManager::update() {
+  if (state_ == WiFiManagerState::NO_CREDENTIALS) {
+    state_ = WiFiManagerState::AP_MODE;
+    return;
+  }
+
+  if (state_ == WiFiManagerState::AP_MODE) {
+    Logger::info("Starting Access Point...");
+    WiFi.mode(WIFI_AP);
+    delay(10);
+    WiFi.softAP("MedLink-Setup", "12345678");
+    delay(10);
+
+    String ipStr = WiFi.softAPIP().toString();
+    char logBuf[192];
+    snprintf(logBuf, sizeof(logBuf), 
+             "Access Point Started\nSSID: MedLink-Setup\nPassword: 12345678\nIP Address: %s", 
+             ipStr.c_str());
+    Logger::info(logBuf);
+
+    state_ = WiFiManagerState::WAIT_FOR_SETUP;
+    return;
+  }
+
   if (state_ == WiFiManagerState::CONNECTING) {
     if (WiFi.status() == WL_CONNECTED) {
       state_ = WiFiManagerState::CONNECTED;
@@ -21,15 +49,18 @@ void WiFiManager::update() {
     const unsigned long currentMs = millis();
     if (currentMs - connectionStartedMs_ >= Config::WIFI_CONNECT_TIMEOUT_MS) {
       WiFi.disconnect(false);
-      Logger::warn("WiFi Connection Failed - Starting SoftAP");
-      startAP();
+      Logger::warn("WiFi Connection Failed - Transitioning to AP mode");
+      state_ = WiFiManagerState::NO_CREDENTIALS;
     }
     return;
   }
 
   if (state_ == WiFiManagerState::CONNECTED && WiFi.status() != WL_CONNECTED) {
     state_ = WiFiManagerState::DISCONNECTED;
-    Logger::warn("WiFi Disconnected");
+    Logger::warn("WiFi Disconnected - Reconnecting");
+    state_ = WiFiManagerState::CONNECTING;
+    connectionStartedMs_ = millis();
+    WiFi.begin(ssid_, password_);
   }
 }
 
@@ -48,7 +79,7 @@ bool WiFiManager::connect(const char* ssid, const char* password) {
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin(ssid_, password_);
   
-  char logBuf[64];
+  char logBuf[128];
   snprintf(logBuf, sizeof(logBuf), "Connecting to SSID: %s", ssid_);
   Logger::info(logBuf);
   
@@ -63,11 +94,12 @@ void WiFiManager::disconnect() {
 
 bool WiFiManager::isConnected() const {
   return (state_ == WiFiManagerState::CONNECTED && WiFi.status() == WL_CONNECTED) ||
-         (state_ == WiFiManagerState::AP_MODE); // HTTP endpoints are active in AP mode too
+         (state_ == WiFiManagerState::AP_MODE) ||
+         (state_ == WiFiManagerState::WAIT_FOR_SETUP);
 }
 
 IPAddress WiFiManager::getIPAddress() const {
-  if (state_ == WiFiManagerState::AP_MODE) {
+  if (state_ == WiFiManagerState::AP_MODE || state_ == WiFiManagerState::WAIT_FOR_SETUP) {
     return WiFi.softAPIP();
   }
   if (WiFi.status() != WL_CONNECTED) {
@@ -85,17 +117,7 @@ WiFiManagerState WiFiManager::getState() const {
 }
 
 void WiFiManager::startAP() {
-  state_ = WiFiManagerState::AP_MODE;
-
-  char apSSID[32];
-  snprintf(apSSID, sizeof(apSSID), "MedLink-%04X", (uint16_t)(ESP.getChipId() & 0xFFFF));
-
-  WiFi.mode(WIFI_AP);
-  WiFi.softAP(apSSID, "12345678");
-
-  char logBuf[128];
-  snprintf(logBuf, sizeof(logBuf), "SoftAP Active: SSID=%s IP=%s", apSSID, WiFi.softAPIP().toString().c_str());
-  Logger::info(logBuf);
+  state_ = WiFiManagerState::NO_CREDENTIALS;
 }
 
 void WiFiManager::copyCredentials(const char* ssid, const char* password) {

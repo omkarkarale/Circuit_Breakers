@@ -21,22 +21,31 @@ void setup() {
 
   Logger::begin();
 
+  Logger::info("Boot Phase 1: Initializing Filesystem...");
   if (!LittleFS.begin()) {
     Logger::error("LittleFS mount failed!");
   } else {
     Logger::info("LittleFS mounted successfully");
   }
 
+  Logger::info("Boot Phase 2: Starting StorageManager...");
   storageManager.begin();
+  Logger::info("StorageManager initialized");
+
+  Logger::info("Boot Phase 3: Starting WiFiManager...");
   wifiManager.begin();
+  Logger::info("WiFiManager initialized");
 
   // Load WiFi credentials
   String wifiSSID, wifiPassword;
   if (storageManager.loadWiFi(wifiSSID, wifiPassword)) {
+    char buf[128];
+    snprintf(buf, sizeof(buf), "Saved credentials found. SSID: %s", wifiSSID.c_str());
+    Logger::info(buf);
     wifiManager.connect(wifiSSID.c_str(), wifiPassword.c_str());
   } else {
-    Logger::warn("No saved WiFi credentials - Starting SoftAP");
-    wifiManager.startAP();
+    Logger::warn("No saved WiFi credentials - Setting SoftAP request");
+    wifiManager.setNoCredentials();
   }
 
   // Load medicines
@@ -68,8 +77,13 @@ void setup() {
     Logger::info(buf);
   }
 
+  Logger::info("Boot Phase 4: Starting DeviceService...");
   deviceService.begin(&wifiManager, &storageManager);
+  Logger::info("DeviceService initialized");
+
+  Logger::info("Boot Phase 5: Starting ApiManager...");
   apiManager.begin(&deviceService);
+  Logger::info("REST Server Started");
 
   Logger::info("System Ready");
 }
@@ -77,5 +91,6 @@ void setup() {
 void loop() {
   wifiManager.update();
   apiManager.update();
-  delay(Config::mainLoopDelayMs());
+  yield();
+  delay(5);
 }

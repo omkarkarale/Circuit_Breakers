@@ -4,11 +4,14 @@
 #include <ESP8266WiFi.h>
 
 enum class WiFiManagerState {
-  DISCONNECTED,
+  BOOT,
+  NO_CREDENTIALS,
+  AP_MODE,
+  WAIT_FOR_SETUP,
   CONNECTING,
   CONNECTED,
-  FAILED,
-  AP_MODE
+  DISCONNECTED,
+  FAILED
 };
 
 class WiFiManager {
@@ -22,6 +25,7 @@ class WiFiManager {
   const char* getSSID() const;
   WiFiManagerState getState() const;
   void startAP();
+  void setNoCredentials();
 
  private:
   static constexpr size_t MAX_SSID_LENGTH = 32;
@@ -32,6 +36,6 @@ class WiFiManager {
   char ssid_[MAX_SSID_LENGTH + 1] = {};
   char password_[MAX_PASSWORD_LENGTH + 1] = {};
   bool credentialsSupplied_ = false;
-  WiFiManagerState state_ = WiFiManagerState::DISCONNECTED;
+  WiFiManagerState state_ = WiFiManagerState::BOOT;
   unsigned long connectionStartedMs_ = 0;
 };

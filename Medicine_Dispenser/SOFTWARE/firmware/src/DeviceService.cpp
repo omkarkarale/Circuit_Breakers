@@ -59,7 +59,7 @@ void DeviceService::begin(WiFiManager* wifi, StorageManager* storage) {
     SoftwareSerial* dfplayerSerial = new SoftwareSerial(Config::Pins::DFPLAYER_RX, Config::Pins::DFPLAYER_TX);
     dfplayerSerial->begin(9600);
     player_ = new DFRobotDFPlayerMini();
-    if (!player_->begin(*dfplayerSerial)) {
+    if (!player_->begin(*dfplayerSerial, false, false)) {
       Logger::error("DFPlayer NOT detected!");
     } else {
       player_->volume(25);
