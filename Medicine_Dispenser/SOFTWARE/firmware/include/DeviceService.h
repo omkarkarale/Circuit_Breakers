@@ -118,6 +118,14 @@ class DeviceService {
   WiFiManager*    wifi_    = nullptr;
   StorageManager* storage_ = nullptr;
 
+  // Hardware drivers pointers
+  class RTC_DS3231*          rtc_      = nullptr;
+  class LiquidCrystal_I2C*   lcd_      = nullptr;
+  class DFRobotDFPlayerMini* player_   = nullptr;
+  class Stepper*             stepper1_ = nullptr;
+  class Stepper*             stepper2_ = nullptr;
+  class Stepper*             stepper3_ = nullptr;
+
   MedicineRecord  medicines_[DeviceLimits::MAX_MEDICINES] = {};
   ScheduleRecord  schedules_[DeviceLimits::MAX_SCHEDULES] = {};
   LogRecord       logs_[DeviceLimits::MAX_LOGS]           = {};

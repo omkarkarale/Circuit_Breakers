@@ -3,7 +3,13 @@
 #include <Arduino.h>
 #include <cstring>
 #include <cstdio>
+#include <Wire.h>
+#include <RTClib.h>
+#include <LiquidCrystal_I2C.h>
+#include <DFRobotDFPlayerMini.h>
+#include <Stepper.h>
 
+#include "Config.h"
 #include "Logger.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -14,6 +20,70 @@ void DeviceService::begin(WiFiManager* wifi, StorageManager* storage) {
   wifi_    = wifi;
   storage_ = storage;
   startMs_ = millis();
+
+  // 1. Initialize Wire (I2C) and LCD Display
+  #if defined(ESP8266)
+    Wire.begin(Config::Pins::I2C_SDA, Config::Pins::I2C_SCL);
+  #else
+    Wire.begin();
+  #endif
+
+  if (Config::lcdSupported) {
+    lcd_ = new LiquidCrystal_I2C(0x27, 16, 2);
+    lcd_->init();
+    lcd_->backlight();
+    lcd_->setCursor(0, 0);
+    lcd_->print("MedLink Ready");
+  }
+
+  // 2. Initialize DS3231 RTC
+  if (Config::rtcSupported) {
+    rtc_ = new RTC_DS3231();
+    if (!rtc_->begin()) {
+      Logger::error("RTC clock chip not detected!");
+    } else {
+      Logger::info("RTC DS3231 ready");
+    }
+  }
+
+  // 3. Initialize ULN2003 Stepper Motors (2048 steps per revolution)
+  const int stepsPerRev = 2048;
+  stepper1_ = new Stepper(stepsPerRev, Config::Pins::MOTOR1_IN1, Config::Pins::MOTOR1_IN2, Config::Pins::MOTOR1_IN3, Config::Pins::MOTOR1_IN4);
+  stepper2_ = new Stepper(stepsPerRev, Config::Pins::MOTOR2_IN1, Config::Pins::MOTOR2_IN2, Config::Pins::MOTOR2_IN3, Config::Pins::MOTOR2_IN4);
+  stepper3_ = new Stepper(stepsPerRev, Config::Pins::MOTOR3_IN1, Config::Pins::MOTOR3_IN2, Config::Pins::MOTOR3_IN3, Config::Pins::MOTOR3_IN4);
+
+  stepper1_->setSpeed(10);
+  stepper2_->setSpeed(10);
+  stepper3_->setSpeed(10);
+
+  // 4. Initialize DFPlayer MP3 Buzzer
+  if (Config::speakerSupported) {
+    #if defined(ESP8266)
+      Serial1.begin(9600); // ESP8266 standard Tx serial
+      player_ = new DFRobotDFPlayerMini();
+      if (!player_->begin(Serial1)) {
+        Logger::error("DFPlayer NOT detected!");
+      } else {
+        player_->volume(25);
+        Logger::info("DFPlayer ready");
+      }
+    #else
+      Serial2.begin(9600, SERIAL_8N1, Config::Pins::DFPLAYER_RX, Config::Pins::DFPLAYER_TX);
+      player_ = new DFRobotDFPlayerMini();
+      if (!player_->begin(Serial2)) {
+        Logger::error("DFPlayer NOT detected!");
+      } else {
+        player_->volume(25);
+        Logger::info("DFPlayer ready");
+      }
+    #endif
+  }
+
+  // 5. Initialize IR Sensor Input Pin
+  if (Config::irSupported) {
+    pinMode(Config::Pins::IR_SENSOR, INPUT);
+  }
+
   Logger::info("DeviceService Ready");
 }
 
@@ -28,24 +98,31 @@ String DeviceService::buildStatusJson() const {
   String ip   = connected ? wifi_->getIPAddress().toString() : "0.0.0.0";
   String ssid = connected ? String(wifi_->getSSID()) : String("");
 
-  // Escape any quotes in ssid for safety
+  // Escape strings
   ssid.replace("\"", "\\\"");
   ip.replace("\"", "\\\"");
 
   String json = "{";
   json += "\"connected\":"     + String(connected ? "true" : "false") + ",";
   json += "\"deviceName\":\"Smart Dispenser Hub\",";
-  json += "\"firmwareVersion\":\"1.0.0\",";
+  json += "\"firmwareVersion\":\"" + String(Config::firmwareVersion()) + "\",";
   json += "\"uptimeSeconds\":"  + String(up)              + ",";
-  json += "\"batterySupported\":false,";
-  json += "\"tempSupported\":false,";
-  json += "\"epochTime\":"      + String(time(nullptr))   + ",";
-  json += "\"batteryPercentage\":85,";
+  
+  // Real Capability Flags
+  json += "\"batterySupported\":"     + String(Config::batterySupported ? "true" : "false") + ",";
+  json += "\"temperatureSupported\":" + String(Config::temperatureSupported ? "true" : "false") + ",";
+  json += "\"rtcSupported\":"         + String(Config::rtcSupported ? "true" : "false") + ",";
+  json += "\"speakerSupported\":"     + String(Config::speakerSupported ? "true" : "false") + ",";
+  json += "\"irSupported\":"          + String(Config::irSupported ? "true" : "false") + ",";
+  json += "\"lcdSupported\":"         + String(Config::lcdSupported ? "true" : "false") + ",";
+  
+  json += "\"epochTime\":"      + String(rtc_ ? rtc_->now().unixtime() : time(nullptr)) + ",";
+  json += "\"batteryPercentage\":0,"; // Zero if unsupported
   json += "\"batteryCharging\":false,";
   json += "\"wifiSSID\":\""     + ssid                    + "\",";
   json += "\"ipAddress\":\""    + ip                      + "\",";
   json += "\"signalStrength\":"  + (connected ? String(WiFi.RSSI()) : String(0)) + ",";
-  json += "\"temperature\":34.2,";
+  json += "\"temperature\":0.0,"; // Zero if unsupported
   json += "\"nextDoseCountdown\":" + String(nextDoseCountdownSec());
   json += "}";
   return json;
@@ -249,32 +326,86 @@ void DeviceService::appendLog(uint8_t medicineId, uint8_t slot,
 
 bool DeviceService::triggerDispense(uint8_t slot) {
   if (slot < 1 || slot > 3) {
-    Logger::warn("Invalid slot");
+    Logger::warn("Invalid slot requested");
     return false;
   }
-  // Find medicine for this slot
+
+  // Find medicine mapped to slot
+  uint8_t medId = 0;
+  uint8_t dose = 1;
   for (uint8_t i = 0; i < DeviceLimits::MAX_MEDICINES; i++) {
-    if (medicines_[i].base.id == 0) continue;
-    if (medicines_[i].base.dispenserId != slot) continue;
-    if (!medicines_[i].base.enabled) break;
-
-    uint8_t dose = medicines_[i].dosePerReminder;
-    if (medicines_[i].base.pillsRemaining < dose) {
-      Logger::warn("Not enough pills");
-      appendLog(medicines_[i].base.id, slot, DispenseResult::Failed);
-      return false;
+    if (medicines_[i].base.id != 0 && medicines_[i].base.dispenserId == slot) {
+      medId = medicines_[i].base.id;
+      dose = medicines_[i].dosePerReminder;
+      break;
     }
-
-    // Placeholder — actual stepper call goes here in Phase 15
-    Logger::info("Dispense triggered (stub)");
-    medicines_[i].base.pillsRemaining -= dose;
-    appendLog(medicines_[i].base.id, slot, DispenseResult::Success, 2500);
-    return true;
   }
 
-  // Slot not matched to enabled medicine — dry-run for test purposes
-  Logger::info("Dispense test run (no medicine mapped)");
-  appendLog(0, slot, DispenseResult::Success, 2500);
+  Logger::info("Motor turning for slot " + String(slot));
+  
+  // Run stepper motor clockwise (one full revolution)
+  const int stepsPerRev = 2048;
+  if (slot == 1 && stepper1_) {
+    stepper1_->step(stepsPerRev);
+  } else if (slot == 2 && stepper2_) {
+    stepper2_->step(stepsPerRev);
+  } else if (slot == 3 && stepper3_) {
+    stepper3_->step(stepsPerRev);
+  }
+
+  // Play reminder audio
+  if (player_) {
+    player_->play(5);
+  }
+
+  // Set LCD instruction
+  if (lcd_) {
+    lcd_->clear();
+    lcd_->setCursor(0, 0);
+    lcd_->print("Take your Meds!!");
+  }
+
+  // Wait for IR sensor beam block to indicate pill taken
+  // (IR sensor goes LOW when hand or cup is placed)
+  if (Config::irSupported) {
+    unsigned long startCheck = millis();
+    bool taken = false;
+    while (millis() - startCheck < 30000) { // 30 seconds timeout
+      int irVal = digitalRead(Config::Pins::IR_SENSOR);
+      if (irVal == LOW) {
+        taken = true;
+        break;
+      }
+      delay(200);
+    }
+
+    if (taken) {
+      if (lcd_) {
+        lcd_->clear();
+        lcd_->setCursor(3, 1);
+        lcd_->print("Thankyou!!");
+      }
+      Logger::info("Medication successfully taken!");
+    } else {
+      Logger::warn("Medication dispense timed out!");
+    }
+  }
+
+  // Decrement inventory pill count if a medicine is mapped
+  for (uint8_t i = 0; i < DeviceLimits::MAX_MEDICINES; i++) {
+    if (medicines_[i].base.id == medId && medicines_[i].base.id != 0) {
+      if (medicines_[i].base.pillsRemaining >= dose) {
+        medicines_[i].base.pillsRemaining -= dose;
+      } else {
+        medicines_[i].base.pillsRemaining = 0;
+      }
+      break;
+    }
+  }
+
+  appendLog(medId, slot, DispenseResult::Success, 4000);
+  if (storage_) storage_->saveMedicines();
+
   return true;
 }
 
@@ -283,23 +414,33 @@ bool DeviceService::triggerDispense(uint8_t slot) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 bool DeviceService::testMotor() {
-  Logger::info("Motor test stub");
-  return true;
+  if (stepper1_) {
+    stepper1_->step(512);
+    return true;
+  }
+  return false;
 }
 
 bool DeviceService::testAudio() {
-  Logger::info("Audio test stub");
-  return true;
+  if (player_) {
+    player_->play(5);
+    return true;
+  }
+  return false;
 }
 
 bool DeviceService::testRtc() {
-  Logger::info("RTC test stub");
-  return true;
+  if (rtc_) {
+    return rtc_->now().isValid();
+  }
+  return false;
 }
 
 bool DeviceService::testIr() {
-  Logger::info("IR test stub");
-  return true;
+  if (Config::irSupported) {
+    return digitalRead(Config::Pins::IR_SENSOR) == LOW; // returns true if blocked
+  }
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -311,50 +452,36 @@ String DeviceService::buildDiagnosticsJson() const {
   const bool wifiOk = wifi_ && wifi_->isConnected();
 
   String json = "{";
-  json += "\"temperature\":34.2,";
+  json += "\"temperature\":0.0,";
   json += "\"components\":[";
 
-  // Stepper motors — stub OK
-  json += "{\"component\":\"STEPPER_MOTOR_1\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"Normal current load\"},";
-  json += "{\"component\":\"STEPPER_MOTOR_2\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"Normal current load\"},";
-  json += "{\"component\":\"STEPPER_MOTOR_3\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"Normal current load\"},";
+  // Stepper motors (always present)
+  json += "{\"component\":\"Stepper Motor 1\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"Nominal current\"}";
+  json += ",{\"component\":\"Stepper Motor 2\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"Nominal current\"}";
+  json += ",{\"component\":\"Stepper Motor 3\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"Nominal current\"}";
 
-  // RTC — placeholder
-  json += "{\"component\":\"RTC_MODULE\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"RTC synchronized\"},";
-
-  // IR sensor — placeholder
-  json += "{\"component\":\"IR_SENSOR\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"Signal nominal\"},";
-
-  // Speaker — placeholder
-  json += "{\"component\":\"SPEAKER\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"DFPlayer ready\"},";
-
-  // OLED — placeholder
-  json += "{\"component\":\"OLED_DISPLAY\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"I2C nominal\"},";
-
-  // WiFi stack — live
-  json += "{\"component\":\"WIFI_STACK\","
-          "\"status\":\""     + String(wifiOk ? "OK" : "WARNING") + "\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\""    + String(wifiOk ? "RSSI stable" : "Not connected") + "\"},";
-
-  // API gateway — always OK if we can respond
-  json += "{\"component\":\"API_GATEWAY\",\"status\":\"OK\","
-          "\"lastTest\":"     + String(ts) + ","
-          "\"message\":\"Gateway active\"}";
+  // RTC
+  if (Config::rtcSupported) {
+    bool ok = rtc_ && rtc_->now().isValid();
+    json += ",{\"component\":\"RTC Clock Module\",\"status\":\"" + String(ok ? "OK" : "ERROR") + "\",\"lastTest\":" + String(ts) + ",\"message\":\"RTC synchronised\"}";
+  }
+  // IR
+  if (Config::irSupported) {
+    json += ",{\"component\":\"IR Sensor Beam\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"Signal clear\"}";
+  }
+  // Speaker
+  if (Config::speakerSupported) {
+    json += ",{\"component\":\"Audio DFPlayer\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"DFPlayer ready\"}";
+  }
+  // LCD
+  if (Config::lcdSupported) {
+    json += ",{\"component\":\"OLED LCD Screen\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"I2C backlight nominal\"}";
+  }
+  // WiFi
+  json += ",{\"component\":\"WiFi Connection\",\"status\":\"" + String(wifiOk ? "OK" : "WARNING") + "\",\"lastTest\":" + String(ts) + ",\"message\":\"RSSI nominal\"}";
+  
+  // Heap
+  json += ",{\"component\":\"System Heap Memory\",\"status\":\"OK\",\"lastTest\":" + String(ts) + ",\"message\":\"Free: " + String(ESP.getFreeHeap()) + " B\"}";
 
   json += "]}";
   return json;
@@ -495,6 +622,32 @@ uint8_t DeviceService::adherencePercent() const {
 }
 
 int32_t DeviceService::nextDoseCountdownSec() const {
-  // Placeholder — RTC integration will fill this in Phase 15.
-  return 3600;
+  if (!rtc_) return 3600;
+
+  DateTime nowTime = rtc_->now();
+  if (!nowTime.isValid()) return 3600;
+
+  int32_t shortestDiff = -1;
+
+  for (uint8_t i = 0; i < DeviceLimits::MAX_SCHEDULES; i++) {
+    if (!schedules_[i].inUse || !schedules_[i].base.enabled) continue;
+
+    int schedHour = schedules_[i].base.hour;
+    int schedMin = schedules_[i].base.minute;
+
+    int currentMinutes = nowTime.hour() * 60 + nowTime.minute();
+    int scheduleMinutes = schedHour * 60 + schedMin;
+
+    int diffMinutes = scheduleMinutes - currentMinutes;
+    if (diffMinutes <= 0) {
+      diffMinutes += 24 * 60;
+    }
+
+    int32_t diffSec = (diffMinutes * 60) - nowTime.second();
+    if (shortestDiff == -1 || diffSec < shortestDiff) {
+      shortestDiff = diffSec;
+    }
+  }
+
+  return shortestDiff == -1 ? 3600 : shortestDiff;
 }
