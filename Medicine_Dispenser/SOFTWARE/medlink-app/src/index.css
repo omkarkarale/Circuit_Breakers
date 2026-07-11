@@ -1,0 +1,134 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+html {
+  font-size: 16px;
+}
+
+@theme {
+  --color-accent: #0d9488;
+  --color-accent-hover: #0f766e;
+  --color-accent-light: rgba(13, 148, 136, 0.1);
+  --color-border-custom: rgba(0, 0, 0, 0.08);
+  --color-success-custom: #0f766e;
+  --color-error-custom: #e11d48;
+  --color-light: #1f2937;
+  --color-muted: #6b7280;
+  
+  --animate-fade-in: fade-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+:root {
+  --color-accent: #0d9488;
+  --color-accent-hover: #0f766e;
+  --color-accent-light: rgba(13, 148, 136, 0.08);
+  --color-border-custom: rgba(0, 0, 0, 0.08);
+  --color-success-custom: #14b8a6;
+  --color-error-custom: #f43f5e;
+  --color-light: #0f172a;
+  --color-muted: #64748b;
+}
+
+/* Class-based Dark theme overrides */
+:root.dark {
+  --color-accent: #2dd4bf;
+  --color-accent-hover: #14b8a6;
+  --color-accent-light: rgba(45, 212, 191, 0.1);
+  --color-border-custom: rgba(255, 255, 255, 0.06);
+  --color-success-custom: #2dd4bf;
+  --color-error-custom: #fb7185;
+  --color-light: #f8fafc;
+  --color-muted: #94a3b8;
+}
+
+/* Panels keep the same clean surface in both themes; dark mode relies on tone, not outlines. */
+.dark .rounded-2xl,
+.dark .rounded-3xl {
+  border-color: transparent !important;
+}
+
+/* Premium glassmorphism styles */
+.card-glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(13, 148, 136, 0.1);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dark .card-glass {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(45, 212, 191, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+}
+
+/* Primary Button style */
+.btn-primary {
+  background-color: var(--color-accent);
+  color: white;
+  font-weight: 700;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.15);
+  border: none;
+}
+
+.btn-primary:hover {
+  background-color: var(--color-accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(13, 148, 136, 0.25);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+.dark .btn-primary {
+  color: #0f172a;
+  box-shadow: 0 4px 12px rgba(45, 212, 191, 0.15);
+}
+.dark .btn-primary:hover {
+  box-shadow: 0 6px 16px rgba(45, 212, 191, 0.25);
+}
+
+/* Material Symbols alignment and customization */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 24;
+  vertical-align: middle;
+}
+
+.fill-icon {
+  font-variation-settings: 'FILL' 1;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(94, 163, 184, 0.2);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(94, 163, 184, 0.4);
+}

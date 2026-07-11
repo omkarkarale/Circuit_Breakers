@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- ESP8266WebServer serves plain HTTP on local/private IPs; Android blocks cleartext traffic by default since API 28. -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

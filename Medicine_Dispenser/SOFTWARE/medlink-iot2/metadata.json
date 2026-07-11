@@ -1,6 +1,0 @@
-{
-  "name": "MedLink IoT",
-  "description": "Companion mobile application for a physical smart medicine dispenser to automatically remind, schedule, log, and manage medicine doses.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
