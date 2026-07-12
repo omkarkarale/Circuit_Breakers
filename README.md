@@ -12,7 +12,7 @@
 ### 🛠️ Technologies Used
 
 [![Arduino IDE](https://img.shields.io/badge/Arduino-IDE-00979D?style=for-the-badge&logo=arduino&logoColor=white)](https://www.arduino.cc/)
-[![ESP32](https://img.shields.io/badge/ESP32-Microcontroller-E7352C?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/en/products/socs/esp32)
+[![ESP8266](https://img.shields.io/badge/ESP8266-Microcontroller-232F3E?style=for-the-badge&logo=espressif&logoColor=white)](https://www.espressif.com/en/products/socs/esp8266)
 [![C++](https://img.shields.io/badge/C++-Firmware-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)](https://isocpp.org/)
 [![Fusion 360](https://img.shields.io/badge/Fusion_360-3D_CAD-0696D7?style=for-the-badge&logo=autodesk&logoColor=white)](https://www.autodesk.com/products/fusion-360/overview)
 [![LaserCAD](https://img.shields.io/badge/LaserCAD-Laser_Cutting-D35400?style=for-the-badge&logo=adobe&logoColor=white)]()
@@ -129,7 +129,7 @@ Where did you conduct your observations?
 | Activity | Description | Code |
 |:---------|:------------|:-----|
 | Medicine Scheduling | Users need to take different medicines at fixed times throughout the day. | Smart Medicine Sorting and Reminder Device |
-| Dose Identification | Users must identify the correct medicine compartment and dosage. | OLED, LED indicators, voice guidance |
+| Dose Identification | Users must identify the correct medicine compartment and dosage. | LCD, voice guidance |
 | Medicine Retrieval | The device rotates the spool to the correct compartment and guides the user. | 28BYJ-48 stepper + ULN2003 |
 
 ### Environment
@@ -142,13 +142,13 @@ The device is intended for homes, bedside tables, clinics, and elderly care spac
 
 > Who or what are they interacting with?
 
-The user interacts with push buttons, the OLED display, buzzer alerts, voice announcements, LEDs, the rotating medicine spool, and the medicine compartments. Caregivers can use ESP32 Wi-Fi/Bluetooth connectivity for schedule setup and notifications.
+The user interacts with push buttons, the LCD display, voice announcements, the rotating medicine spool, and the medicine compartments. Caregivers can use ESP8266 Wi-Fi connectivity for schedule setup and notifications.
 
 ### Objects
 
 > What tools or products are used?
 
-ESP32 DevKit, DS3231 RTC, 0.96" OLED, 28BYJ-48 stepper motor, ULN2003 driver, DFPlayer Mini, speaker, 3 push buttons, active buzzer, IR sensor, LEDs / NeoPixel ring, 5V adapter or 18650 battery, recycled 3D printer filament spool, and medicine compartments.
+ESP8266 DevKit, DS3231 RTC, 16x2 I2C LCD, 28BYJ-48 stepper motor, ULN2003 driver, DFPlayer Mini, speaker, 3 push buttons, IR sensor, 5V adapter or 18650 battery, recycled 3D printer filament spool, and medicine compartments.
 
 ### Users
 
@@ -224,7 +224,7 @@ The primary users are elderly patients and people with complex medication schedu
 | Severity | 5 | Incorrect or missed medication can directly affect health. |
 | Frequency | 5 | Medicines are often taken daily and multiple times per day. |
 | Feasibility | 4 | Uses affordable and commonly available components. |
-| Novelty | 4 | Combines recycled spool design, voice guidance, LEDs, motorized positioning, and IoT. |
+| Novelty | 4 | Combines recycled spool design, voice guidance, motorized positioning, and IoT. |
 | Market Potential | 4 | Useful for elderly care, home healthcare, and caregiver support. |
 | **Total** | **22/25** | Strong real-world problem with practical implementation scope. |
 
@@ -246,7 +246,7 @@ The primary users are elderly patients and people with complex medication schedu
 
 > Why was this concept chosen?
 
-The selected concept is a Smart Medicine Sorting and Reminder Device built using a recycled 3D printer filament spool. It solves both reminder and medicine identification problems by alerting the user, rotating to the correct compartment, lighting the correct slot, giving voice instructions, and detecting compartment access.
+> The selected concept is a Smart Medicine Sorting and Reminder Device built using a recycled 3D printer filament spool. It solves both reminder and medicine identification problems by alerting the user, rotating to the correct compartment, providing voice instructions, and detecting compartment access.
 
 ---
 
@@ -256,7 +256,7 @@ The selected concept is a Smart Medicine Sorting and Reminder Device built using
 
 > Explain your solution.
 
-The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solution that helps elderly patients and individuals with complex medication schedules take medicines on time and correctly. Medicines are preloaded into weekly compartments inside a recycled 3D printer filament spool. The ESP32 checks scheduled times using the DS3231 RTC. At the correct time, the buzzer sounds, the DFPlayer Mini plays a voice reminder, LEDs indicate the correct compartment, the OLED shows medicine information, and the stepper motor rotates the spool to the correct slot. The IR sensor can detect access and support logging or caregiver notification.
+The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solution that helps elderly patients and individuals with complex medication schedules take medicines on time and correctly. Medicines are preloaded into weekly compartments inside a recycled 3D printer filament spool. The ESP8266 checks scheduled times using the DS3231 RTC. At the correct time, the DFPlayer Mini plays a voice reminder, the LCD shows medicine information, and the stepper motor rotates the spool to the correct slot. The IR sensor can detect access and support logging or caregiver notification.
 
 ---
 
@@ -281,7 +281,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 | Push buttons | Digital input | Configure schedules and navigate menus |
 | DS3231 RTC | Time input | Provides accurate real-time scheduling |
 | IR sensor | Digital sensor | Detects compartment access or medicine retrieval |
-| ESP32 Wi-Fi/Bluetooth | Wireless input | Enables mobile app connectivity and caregiver setup |
+| ESP8266 | Wireless input | Enables mobile app connectivity and caregiver setup |
 
 ---
 
@@ -291,10 +291,8 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | Output | Type | Purpose |
 |:-------|:-----|:--------|
-| OLED display | Visual display | Shows current time, status, and medication information |
+| LCD display | Visual display | Shows current time, status, and medication information |
 | DFPlayer Mini + speaker | Audio output | Gives voice reminders and dosage instructions |
-| Active buzzer | Audio alert | Alerts the user at medicine time |
-| LED indicators / NeoPixel ring | Visual indicator | Illuminates the correct medicine compartment |
 | 28BYJ-48 stepper motor | Actuator | Rotates the spool to the correct slot |
 
 ---
@@ -305,17 +303,14 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | Component | Qty | Purpose |
 |:----------|:---:|:--------|
-| ESP32 DevKit | 1 | Main controller and Wi-Fi/Bluetooth connectivity |
+| ESP8266 | 1 | Main controller and Wi-Fi connectivity |
 | DS3231 RTC Module | 1 | Accurate real-time clock for medicine schedules |
-| 0.96" OLED Display | 1 | Displays time, status, and medicine information |
-| 28BYJ-48 Stepper Motor | 1 | Rotates the medicine spool |
-| ULN2003 Motor Driver | 1 | Drives the stepper motor |
+| LCD Display | 1 | Displays time, status, and medicine information |
+| 28BYJ-48 Stepper Motor | 3 | Rotates the medicine spool |
+| ULN2003 Motor Driver | 3 | Drives the stepper motor |
 | DFPlayer Mini + Speaker | 1 set | Plays voice reminders and dosage instructions |
-| Push Buttons | 3 | Menu navigation and schedule configuration |
-| Active Buzzer | 1 | Provides reminder alert |
 | IR Sensor | 1 | Detects access or retrieval |
-| LED Indicators / NeoPixel Ring | 1 set | Highlights the correct compartment |
-| 5V Adapter or 18650 Battery | 1 | Power supply |
+| 12V Adapter or 18650 Battery | 1 | Power supply |
 
 ---
 
@@ -323,13 +318,13 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | Tool / Library | Purpose |
 |:---------------|:--------|
-| Arduino IDE | Firmware development for ESP32 |
-| ESP32 Arduino Core | ESP32 programming and wireless features |
+| Arduino IDE | Firmware development for ESP8266 |
+| ESP8266 Arduino Core | ESP8266 programming and wireless features |
 | RTC library | DS3231 timekeeping and schedule checking |
-| OLED display library | Displaying time, status, and medicine details |
+| LCD display library | Displaying time, status, and medicine details |
 | Stepper motor library | Controlling spool rotation |
 | DFPlayer Mini library | Playing audio reminder files |
-| Wi-Fi / Bluetooth libraries | Mobile app connectivity and caregiver notifications |
+| Wi-Fi libraries | Mobile app connectivity and caregiver notifications |
 
 ---
 
@@ -342,7 +337,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 | Recycled spool organizer | Upcycling / CAD modification | 3D printer filament spool | Main circular medicine enclosure |
 | Medicine compartments | 3D printing / laser cutting | PLA / acrylic / cardboard prototype material | Weekly medicine slots |
 | Motor mount | 3D CAD | PLA / acrylic | Holds stepper motor in alignment |
-| Electronics housing | 3D CAD / laser cutting | PLA / acrylic | Protects ESP32, RTC, motor driver, and audio module |
+| Electronics housing | 3D CAD / laser cutting | PLA / acrylic | Protects ESP8266, RTC, motor driver, and audio module |
 
 ---
 
@@ -361,7 +356,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | Field | Details |
 |:------|:--------|
-| **Description** | ESP32-based prototype with RTC scheduling, buzzer reminder, OLED display, and stepper-based rotation. |
+| **Description** | Arduino-based prototype with RTC scheduling, LCD display, and stepper-based rotation. |
 | **Lessons Learned** | Accurate timing, motor calibration, and simple feedback are essential for reliable use. |
 
 ---
@@ -370,7 +365,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | Field | Details |
 |:------|:--------|
-| **Description** | IoT-enabled medicine sorting and reminder device with voice guidance, LED indication, motorized compartment positioning, OLED status display, push-button controls, and IR access detection. |
+| **Description** | IoT-enabled medicine sorting and reminder device with voice guidance, motorized compartment positioning, LCD status display, push-button controls, and IR access detection. |
 
 ```html
 <p align="center">
@@ -388,7 +383,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 |:-:|-----|:-----------------|:------:|
 | 1 | RTC schedule reminder | Reminder activates at the programmed time | ⬜ |
 | 2 | Motor positioning | Spool rotates to the correct compartment | ⬜ |
-| 3 | Voice, LED, and sensor feedback | Correct audio plays, correct slot lights, and access is detected | ⬜ |
+| 3 | Voice and sensor feedback | Correct audio plays and access is detected | ⬜ |
 
 ---
 
@@ -396,8 +391,8 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 | User | Feedback | Action Taken |
 |:-----|:---------|:-------------|
-| Elderly user | Voice reminders are easier to understand than only a buzzer. | Added DFPlayer Mini and speaker for audio guidance. |
-| Caregiver | Correct slot indication is important to avoid confusion. | Added LED / NeoPixel visual guidance. |
+| Elderly user | Voice reminders are easier to understand than a simple chime. | Added DFPlayer Mini and speaker for audio guidance. |
+| Caregiver | Clear compartment guidance is important to avoid confusion. | Used LCD messaging and mechanical positioning for guidance. |
 
 ---
 
@@ -417,7 +412,7 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 ## What Makes This Different?
 
-This project combines a recycled 3D printer filament spool, motorized compartment positioning, voice guidance, LED indication, IoT connectivity, and low-cost electronics. It supports elderly users and caregivers while promoting sustainability through upcycling.
+This project combines a recycled 3D printer filament spool, motorized compartment positioning, voice guidance, IoT connectivity, and low-cost electronics. It supports elderly users and caregivers while promoting sustainability through upcycling.
 
 ---
 
@@ -426,7 +421,7 @@ This project combines a recycled 3D printer filament spool, motorized compartmen
 | Parameter | Score (1–5) | Justification |
 |:----------|:----------:|:--------------|
 | Novelty | 4 | Uses a recycled spool as the main circular medicine organizer. |
-| Technical Depth | 4 | Integrates ESP32, RTC, motor control, audio, display, sensor, and wireless features. |
+| Technical Depth | 4 | Integrates ESP8266, RTC, motor control, audio, display, sensor, and wireless features. |
 | Feasibility | 4 | Uses low-cost and easily available components. |
 | Impact | 5 | Helps reduce missed doses and incorrect medicine intake. |
 | Scalability | 4 | Can be expanded with app support, cloud logs, and caregiver alerts. |
@@ -450,8 +445,8 @@ This project combines a recycled 3D printer filament spool, motorized compartmen
 ## Novel Features
 
 1. Recycled filament spool converted into a circular smart medicine organizer.
-2. Motorized compartment positioning combined with LED and voice guidance.
-3. ESP32-based low-cost system with access detection and caregiver connectivity.
+2. Motorized compartment positioning combined with voice guidance.
+3. ESP8266-based low-cost system with access detection and caregiver connectivity.
 
 ---
 
@@ -460,10 +455,10 @@ This project combines a recycled 3D printer filament spool, motorized compartmen
 | Section | Content |
 |:--------|:--------|
 | **Title** | Smart Medicine Sorting and Reminder Device Using Recycled Spool-Based Compartment Mechanism |
-| **Abstract** | An IoT-enabled medicine organizer that uses a recycled filament spool as a circular storage mechanism. The system provides scheduled reminders, motorized compartment positioning, visual indication, voice guidance, and optional access detection for medicine retrieval. |
+| **Abstract** | An IoT-enabled medicine organizer that uses a recycled filament spool as a circular storage mechanism. The system provides scheduled reminders, motorized compartment positioning, voice guidance, and optional access detection for medicine retrieval. |
 | **Problem** | Elderly patients and users with complex medicine schedules often miss doses or take incorrect medicines due to confusion, forgetfulness, or lack of caregiver support. |
-| **Solution** | A low-cost smart organizer that stores weekly medicine doses, alerts the user at scheduled times, rotates to the correct compartment, lights the slot, announces instructions, and detects access. |
-| **Claims** | Spool-based compartment design, scheduled motorized positioning, combined voice and LED medicine guidance, and caregiver notification support through ESP32 connectivity. |
+| **Solution** | A low-cost smart organizer that stores weekly medicine doses, alerts the user at scheduled times, rotates to the correct compartment, announces instructions, and detects access. |
+| **Claims** | Spool-based compartment design, scheduled motorized positioning, and caregiver notification support through ESP8266 connectivity. |
 
 ---
 
@@ -472,7 +467,7 @@ This project combines a recycled 3D printer filament spool, motorized compartmen
 | Topic | Details |
 |:------|:--------|
 | **Target Users** | Elderly patients, people with chronic illnesses, caregivers, families, clinics, and home healthcare providers |
-| **Estimated Cost** | Low-cost prototype using ESP32, RTC, OLED, motor, audio module, buttons, buzzer, IR sensor, and recycled spool body |
+| **Estimated Cost** | Low-cost prototype using ESP8266, RTC, LCD, motor, audio module, buttons, IR sensor, and recycled spool body |
 | **Market Opportunity** | Growing demand for elderly care, home healthcare, medication adherence tools, and affordable assistive devices |
 | **Sustainability Considerations** | Reuses discarded 3D printer filament spools and promotes upcycling in healthcare device design |
 
@@ -499,7 +494,7 @@ This project combines a recycled 3D printer filament spool, motorized compartmen
 
 ## GitHub Repository
 
-> `https://github.com/<your-username>/MakerMania-2026-CircuitBreakers`
+> `https://github.com/omkarkarale/MakerMania-2026-CircuitBreakers`
 
 ---
 
@@ -559,9 +554,9 @@ Each team will present:
 |:-:|-------|
 | 1 | Problem: missed and incorrect medicine intake |
 | 2 | User Research: elderly users and caregivers need clearer reminders |
-| 3 | Insights: voice, light, and physical positioning reduce confusion |
+| 3 | Insights: voice, visual, and physical positioning reduce confusion |
 | 4 | Solution: smart rotating medicine organizer using a recycled spool |
-| 5 | Prototype Demo: reminder, voice instruction, LED indication, and motor rotation |
+| 5 | Prototype Demo: reminder, voice instruction, and motor rotation |
 | 6 | Innovation & Patentability: low-cost IoT device with sustainable spool mechanism |
 | 7 | Future Roadmap: app connectivity, caregiver alerts, logging, and refined enclosure |
 
