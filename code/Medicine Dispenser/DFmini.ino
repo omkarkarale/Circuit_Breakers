@@ -2,7 +2,7 @@
 
 DFRobotDFPlayerMini player;
 
-void setup() {
+void setup() { 
   Serial.begin(115200);
   Serial2.begin(9600);
 
@@ -16,8 +16,8 @@ void setup() {
   Serial.println("DFPlayer detected successfully!");
   player.volume(25);
   // player.play(1);
-  // delay(4000);
-  player.play(5);
+  // delay(4000);  
+  player.play(4);
   delay(4000);
 }
 

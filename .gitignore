@@ -1,0 +1,6 @@
+# Ignore Node.js dependencies
+**/node_modules/
+
+# Optional
+npm-debug.log*
+.env
