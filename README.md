@@ -98,11 +98,11 @@ MakerMania-2026-CircuitBreakers/
 
 > **Team Name:** Circuit Breakers
 >
-> *Add your team photo below once uploaded to `images/`.*
+> *Add your team photo here once the image file is added to the repository.*
 >
 > 
 > <p align="center">
->   <img src="images/team-photo.jpg" width="500" alt="Circuit Breakers Team Photo">
+>   <em>Team photo placeholder: add an image file and update this entry.</em>
 > </p>
 > 
 
