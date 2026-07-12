@@ -58,26 +58,36 @@
 MakerMania-2026-CircuitBreakers/
 ├── README.md                         # Project workbook (this file)
 ├── Instruction.md                    # GitHub workflow guide
-├── 3D SPOOL.f3d                      # Main spool CAD model
-├── Medicine_Dispenser/
-│   ├── Component_list.txt            # Project hardware list
-│   └── ELECTRONICS/                  # KiCad electronics project files
+├── REPORT.pdf                        # Final report / documentation
 ├── cad/
+│   ├── 3D SPOOL.f3d                  # Main spool CAD model
 │   ├── tmp.txt
 │   └── USELESS/                      # Old / unused CAD reference files
 ├── code/
-│   └── Arduino/
-│       ├── led_chaser.ino            # ESP32 LED chaser
-│       ├── potentiometer.ino         # Potentiometer-controlled LEDs
-│       └── binary_counter.ino        # Binary counter display
+│   ├── Arduino/
+│   │   ├── binary_counter.ino        # Binary counter display
+│   │   ├── led_chaser.ino            # ESP32 LED chaser
+│   │   └── potentiometer.ino         # Potentiometer-controlled LEDs
+│   ├── EXTRAAS/                      # Extra Arduino experiments
+│   └── Medicine Dispenser/
+│       ├── DFmini.ino
+│       ├── dispenser.ino
+│       ├── ir.ino
+│       ├── lcd.ino
+│       ├── rtc.ino
+│       └── Stepper.ino
 ├── docs/
 │   ├── Birdex.pdf
 │   └── tmp.txt
-├── images/                           # Sketches, photos, diagrams
+├── Medicine_Dispenser/
+│   ├── Component_list.txt            # Project hardware list
+│   ├── ELECTRONICS/                  # KiCad electronics project files
+│   ├── MODELS/                       # Physical part drawings and print files
+│   └── SOFTWARE/                     # Firmware and app source code
 └── Training Material/
     ├── Fusion 360/                   # CAD keychain design practice files
     ├── KiCad/                        # KiCad training material
-    └── Laser/                        # Laser-cut ID and design files
+    └── Laser/                        # Laser-cut design files
 ```
 
 ---
