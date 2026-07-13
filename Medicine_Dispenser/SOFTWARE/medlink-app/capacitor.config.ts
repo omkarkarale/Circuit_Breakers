@@ -6,7 +6,12 @@ const config: CapacitorConfig = {
   webDir: 'dist',
   android: {
     allowMixedContent: true
-  }
+  },
+  plugins: {
+    Keyboard: {
+      resize: 'none',
+    },
+  },
 };
 
 export default config;

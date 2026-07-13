@@ -12,8 +12,6 @@
 // SoftwareSerial RX = D5, TX = D6 for communication
 SoftwareSerial swSerial(D5, D6);
 
-unsigned long lastPingTime = 0;
-
 void setup() {
   // Initialize Hardware Serial (USB) for debugging
   Serial.begin(115200);
@@ -40,11 +38,4 @@ void loop() {
   ApiManager::update();
   Scheduler::update();
 
-  unsigned long currentTime = millis();
-  
-  // Every 1000ms, send the ping command over SoftwareSerial
-  if (currentTime - lastPingTime >= 1000) {
-    lastPingTime = currentTime;
-    swSerial.println("{\"type\":\"cmd\",\"id\":1,\"op\":\"ping\"}");
-  }
 }

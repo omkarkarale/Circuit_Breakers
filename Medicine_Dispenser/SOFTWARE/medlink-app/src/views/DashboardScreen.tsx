@@ -298,7 +298,7 @@ export default function DashboardView({ onOpenLogs }: { onOpenLogs: () => void }
 
         {data && data.recentActivity && data.recentActivity.length > 0 ? (
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
-            {data.recentActivity.slice(0, 5).map((act, i) => {
+            {data.recentActivity.slice(0, 3).map((act, i) => {
               const { icon, color } = activityIcon(act.type);
               return (
                 <div key={i} className="flex items-center gap-3 px-4 py-3">
@@ -308,15 +308,6 @@ export default function DashboardView({ onOpenLogs }: { onOpenLogs: () => void }
                 </div>
               );
             })}
-            {/* Tap-to-expand footer */}
-            <button
-              type="button"
-              onClick={onOpenLogs}
-              className="w-full py-3 flex items-center justify-center gap-1 text-[10px] font-bold text-teal-600 dark:text-teal-400 cursor-pointer bg-slate-50 dark:bg-slate-950 hover:bg-teal-50 dark:hover:bg-teal-900/10 transition-colors"
-            >
-              <span>See full log history</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
           </div>
         ) : (
           <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">

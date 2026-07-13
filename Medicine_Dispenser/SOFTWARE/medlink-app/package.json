@@ -15,10 +15,12 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/core": "^8.4.1",
     "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/keyboard": "^8.0.5",
     "@capacitor/network": "^8.0.1",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.1",
     "@capgo/capacitor-wifi": "^8.4.0",
+    "capacitor-native-settings": "^8.1.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },

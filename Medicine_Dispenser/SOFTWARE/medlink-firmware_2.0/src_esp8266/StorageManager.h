@@ -27,6 +27,7 @@ public:
     // Logs
     static JsonDocument getLogs();
     static void appendLog(const String& type, const String& detail);
+    static void clearLogs();
 
     // Settings
     static JsonDocument getSettings();

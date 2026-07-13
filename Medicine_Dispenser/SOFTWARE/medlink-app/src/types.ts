@@ -1,10 +1,7 @@
-export type MedicineType = 'Tablet' | 'Capsule' | 'Softgel' | 'Other';
-
 export interface Medicine {
   id: string;
   slot: 1 | 2 | 3;
   name: string;
-  type: MedicineType;
   remainingPills: number;
   maxPills: number;
   dosePerReminder: number;

@@ -18,7 +18,7 @@ export async function clearIp(): Promise<void> {
 export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 3000): Promise<Response> {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -130,23 +130,41 @@ async function getMockLogs(): Promise<LogItem[]> {
 }
 
 async function appendMockLog(type: string, detail: string): Promise<void> {
-  const logs = await getMockLogs();
-  const nextLogs = [{ ts: Math.floor(Date.now() / 1000), type, detail }, ...logs].slice(0, 100);
-  await Preferences.set({ key: MOCK_LOGS_KEY, value: JSON.stringify(nextLogs) });
+  let logs = await getMockLogs();
+  
+  if (logs.length >= 200) {
+    logs = [{
+      ts: Math.floor(Date.now() / 1000),
+      type: 'system',
+      detail: 'Logs auto-cleared (reached limit of 200 entries)'
+    }];
+  } else {
+    logs = [{ ts: Math.floor(Date.now() / 1000), type, detail }, ...logs];
+  }
+  
+  await Preferences.set({ key: MOCK_LOGS_KEY, value: JSON.stringify(logs) });
 }
 
 /**
  * Public log helper.
  * In mock/bypass mode: writes to Preferences.
- * On real hardware: firmware logs internally; this is a no-op so we don't
- * need a dedicated POST endpoint on the ESP.
+ * On real hardware: sends a POST request to `/api/v1/logs` to store it on the ESP.
  */
 export async function appendLog(type: string, detail: string): Promise<void> {
   const ip = await getSavedIp();
   if (isBypassIp(ip)) {
     await appendMockLog(type, detail);
+  } else {
+    try {
+      await apiRequest<void>('/api/v1/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, detail })
+      });
+    } catch (err) {
+      console.error('[appendLog] Failed to send log to ESP:', err);
+    }
   }
-  // On real device the firmware's StorageManager::appendLog handles it
 }
 
 const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -230,7 +248,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
       const meds = await getMockMedicines();
       const body = JSON.parse(options.body as string);
       const qty = body.quantity || 0;
-      
+
       const updated = meds.map(m => {
         if (m.slot === slotNum) {
           const newQty = m.remainingPills + qty;
@@ -288,7 +306,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
             let status = "ok";
             if (remainingPills === 0) status = "empty";
             else if (remainingPills <= lowStockThreshold) status = "low";
-            
+
             return {
               ...m,
               ...body,
@@ -356,6 +374,21 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
       } as unknown as T;
     }
     if (endpoint.endsWith('/logs')) {
+      if (options.method === 'POST') {
+        const body = JSON.parse(options.body as string);
+        await appendMockLog(body.type || 'connection', body.detail || '');
+        return {
+          success: true,
+          message: "Log appended successfully"
+        } as unknown as T;
+      }
+      if (options.method === 'DELETE') {
+        await Preferences.remove({ key: MOCK_LOGS_KEY });
+        return {
+          success: true,
+          message: "Logs cleared successfully"
+        } as unknown as T;
+      }
       const logs = await getMockLogs();
       return {
         success: true,
@@ -366,7 +399,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
     if (endpoint.endsWith('/home')) {
       const now = Math.floor(Date.now() / 1000);
       const meds = await getMockMedicines();
-      
+
       const todaySchedule: any[] = [];
       const nextDoses: any[] = [];
       const today = new Date();
@@ -435,16 +468,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
         success: true,
         message: "Full diagnostics complete",
         data: {
-          wifi:     { pass: true,  detail: "Wi-Fi connected, RSSI -62 dBm" },
-          rtc:      { pass: true,  detail: "RTC time synced: " + new Date().toISOString() },
-          stepper1: { pass: true,  detail: "Stepper 1 homed successfully in 340 ms" },
+          wifi: { pass: true, detail: "Wi-Fi connected, RSSI -62 dBm" },
+          rtc: { pass: true, detail: "RTC time synced: " + new Date().toISOString() },
+          stepper1: { pass: true, detail: "Stepper 1 homed successfully in 340 ms" },
           stepper2: { pass: false, detail: "Stepper 2 stall detected — check cartridge alignment" },
-          stepper3: { pass: true,  detail: "Stepper 3 homed successfully in 310 ms" },
-          ir:       { pass: true,  detail: "IR beam clear, baseline 1023" },
-          speaker:  { pass: true,  detail: "Audio tone 1kHz played OK" },
-          storage:  { pass: true,  detail: "LittleFS mounted, 68 KB free" },
-          memory:   { pass: true,  detail: "Heap free: 28744 B" },
-          firmware: { pass: true,  detail: "Firmware v2.0.0, CRC OK", ts: now }
+          stepper3: { pass: true, detail: "Stepper 3 homed successfully in 310 ms" },
+          ir: { pass: true, detail: "IR beam clear, baseline 1023" },
+          speaker: { pass: true, detail: "Audio tone 1kHz played OK" },
+          storage: { pass: true, detail: "LittleFS mounted, 68 KB free" },
+          memory: { pass: true, detail: "Heap free: 28744 B" },
+          firmware: { pass: true, detail: "Firmware v2.0.0, CRC OK", ts: now }
         }
       } as unknown as T;
     }
@@ -454,15 +487,15 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
       await new Promise(resolve => setTimeout(resolve, 900));
       const now = Math.floor(Date.now() / 1000);
       const detailMap: Record<string, string> = {
-        wifi:     "Wi-Fi connected, RSSI -62 dBm",
-        rtc:      "RTC time synced: " + new Date().toISOString(),
+        wifi: "Wi-Fi connected, RSSI -62 dBm",
+        rtc: "RTC time synced: " + new Date().toISOString(),
         stepper1: "Stepper 1 homed successfully in 340 ms",
         stepper2: "Stepper 2 stall detected — check cartridge alignment",
         stepper3: "Stepper 3 homed successfully in 310 ms",
-        ir:       "IR beam clear, baseline 1023",
-        speaker:  "Audio tone 1kHz played OK",
-        storage:  "LittleFS mounted, 68 KB free",
-        memory:   "Heap free: 28744 B",
+        ir: "IR beam clear, baseline 1023",
+        speaker: "Audio tone 1kHz played OK",
+        storage: "LittleFS mounted, 68 KB free",
+        memory: "Heap free: 28744 B",
         firmware: "Firmware v2.0.0, CRC OK"
       };
       const failSet = new Set(['stepper2']);
@@ -481,16 +514,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}, timeou
         success: true,
         message: "Diagnostics data",
         data: {
-          wifi:     { status: "ok",      lastChecked: now - 120, detail: "Wi-Fi connected, RSSI -62 dBm" },
-          rtc:      { status: "ok",      lastChecked: now - 300, detail: "RTC time synced" },
-          stepper1: { status: "ok",      lastChecked: now - 300, detail: "Motor driver responding" },
-          stepper2: { status: "fail",    lastChecked: now - 300, detail: "Stepper 2 stall detected" },
-          stepper3: { status: "ok",      lastChecked: now - 300, detail: "Motor driver responding" },
-          ir:       { status: "ok",      lastChecked: now - 300, detail: "IR beam clear" },
-          speaker:  { status: "ok",      lastChecked: now - 300, detail: "Audio driver OK" },
-          storage:  { status: "ok",      lastChecked: now - 300, detail: "LittleFS 68 KB free" },
-          memory:   { status: "ok",      lastChecked: now - 300, detail: "Heap: 28744 B free" },
-          firmware: { status: "ok",      lastChecked: now - 300, detail: "v2.0.0, CRC OK" }
+          wifi: { status: "ok", lastChecked: now - 120, detail: "Wi-Fi connected, RSSI -62 dBm" },
+          rtc: { status: "ok", lastChecked: now - 300, detail: "RTC time synced" },
+          stepper1: { status: "ok", lastChecked: now - 300, detail: "Motor driver responding" },
+          stepper2: { status: "fail", lastChecked: now - 300, detail: "Stepper 2 stall detected" },
+          stepper3: { status: "ok", lastChecked: now - 300, detail: "Motor driver responding" },
+          ir: { status: "ok", lastChecked: now - 300, detail: "IR beam clear" },
+          speaker: { status: "ok", lastChecked: now - 300, detail: "Audio driver OK" },
+          storage: { status: "ok", lastChecked: now - 300, detail: "LittleFS 68 KB free" },
+          memory: { status: "ok", lastChecked: now - 300, detail: "Heap: 28744 B free" },
+          firmware: { status: "ok", lastChecked: now - 300, detail: "v2.0.0, CRC OK" }
         }
       } as unknown as T;
     }
@@ -727,8 +760,84 @@ export const ApiClient = {
     return apiRequest<InfoResponse>('/api/v1/info');
   },
 
-  getHome: (): Promise<HomeResponse> => {
-    return apiRequest<HomeResponse>('/api/v1/home');
+  getHome: async (): Promise<HomeResponse> => {
+    // 1. Fetch real medicines list
+    const medsRes = await ApiClient.getMedicines();
+    const meds = medsRes.data;
+
+    // 2. Fetch real logs list (recent activity)
+    let logs: LogItem[] = [];
+    try {
+      const logsRes = await ApiClient.getLogs();
+      logs = logsRes.data || [];
+    } catch (err) {
+      console.warn('[ApiClient] Failed to fetch logs for dashboard:', err);
+    }
+
+    // 3. Compute times entirely client-side using Android device local time
+    const now = Math.floor(Date.now() / 1000);
+    const todaySchedule: any[] = [];
+    const nextDoses: any[] = [];
+    const today = new Date();
+    const currentMs = Date.now();
+
+    meds.forEach(m => {
+      if (!m.assigned) return;
+
+      if (medicineRunsOnDate(m, today)) {
+        m.times.forEach(time => {
+          todaySchedule.push({
+            slot: m.slot,
+            medicineName: m.name,
+            dose: m.dosePerReminder,
+            scheduledTime: time,
+            remainingPills: m.remainingPills,
+            notes: m.notes
+          });
+        });
+      }
+
+      let foundUpcomingForMedicine = false;
+      for (let dayOffset = 0; dayOffset < 8; dayOffset += 1) {
+        const checkDate = new Date(today);
+        checkDate.setDate(today.getDate() + dayOffset);
+        if (!medicineRunsOnDate(m, checkDate)) continue;
+
+        m.times.forEach(time => {
+          const scheduled = scheduledDateForTime(checkDate, time);
+          if (!scheduled || scheduled.getTime() < currentMs) return;
+          foundUpcomingForMedicine = true;
+          nextDoses.push({
+            slot: m.slot,
+            medicineName: m.name,
+            dose: m.dosePerReminder,
+            scheduledTime: time,
+            countdownSeconds: Math.max(0, Math.floor((scheduled.getTime() - currentMs) / 1000)),
+            notes: m.notes,
+            isToday: dayOffset === 0
+          });
+        });
+
+        if (foundUpcomingForMedicine) {
+          return;
+        }
+      }
+    });
+
+    todaySchedule.sort((a, b) => a.scheduledTime.localeCompare(b.scheduledTime));
+    nextDoses.sort((a, b) => a.countdownSeconds - b.countdownSeconds);
+
+    // Sort logs descending (newest first) to ensure recentActivity returns latest 5 logs
+    logs.sort((a, b) => b.ts - a.ts);
+
+    return {
+      success: true,
+      message: "Client computed home data",
+      nextDoses,
+      todaySchedule,
+      recentActivity: logs.slice(0, 5),
+      deviceTime: now
+    };
   },
 
   getMedicines: (): Promise<MedicinesResponse> => {
@@ -829,7 +938,36 @@ export const ApiClient = {
     });
   },
 
+  syncTime: async (ip?: string): Promise<{ success: boolean; message: string }> => {
+    const targetIp = ip || await getSavedIp();
+    if (!targetIp || isBypassIp(targetIp)) {
+      return { success: true, message: "Bypass mode — skip time sync" };
+    }
+    const epoch = Math.floor(Date.now() / 1000);
+    const url = `http://${targetIp}/api/v1/device/time`;
+    const response = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ time: epoch })
+    }, 2000);
+    if (!response.ok) {
+      throw new Error(`Time sync failed: HTTP ${response.status}`);
+    }
+    return await response.json();
+  },
+
   getLogs: (): Promise<LogsResponse> => {
     return apiRequest<LogsResponse>('/api/v1/logs');
+  },
+
+  clearLogs: async (): Promise<{ success: boolean; message: string }> => {
+    const ip = await getSavedIp();
+    if (isBypassIp(ip)) {
+      await Preferences.remove({ key: MOCK_LOGS_KEY });
+      return { success: true, message: "Mock logs cleared" };
+    }
+    return apiRequest<{ success: boolean; message: string }>('/api/v1/logs', {
+      method: 'DELETE'
+    });
   }
 };

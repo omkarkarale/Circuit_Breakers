@@ -129,7 +129,10 @@ void ApiManager::begin() {
     _server.on("/api/v1/wifi/forget",      HTTP_POST, _handleWifiForget);
     _server.on("/api/v1/device/reboot",        HTTP_POST, _handleReboot);
     _server.on("/api/v1/device/factory-reset", HTTP_POST, _handleFactoryReset);
+    _server.on("/api/v1/device/time",          HTTP_POST, _handlePostTime);
     _server.on("/api/v1/logs",         HTTP_GET,  _handleGetLogs);
+    _server.on("/api/v1/logs",         HTTP_POST, _handlePostLog);
+    _server.on("/api/v1/logs",         HTTP_DELETE, _handleDeleteLogs);
 
     // Register SerialBridge event handler for pill count decrements and logs
     SerialBridge::setEventHandler([](const String& name, JsonVariant payload) {
@@ -429,19 +432,7 @@ void ApiManager::_handlePutMedicine() {
     StorageManager::setMedicines(med);
     Scheduler::resetLowWarned(slot);
 
-    // Log the assignment
-    {
-        JsonDocument logMed = StorageManager::getMedicines();
-        String medName = "(unknown)";
-        for (JsonObject s : logMed.as<JsonArray>()) {
-            if (s["slot"].as<int>() == slot) {
-                medName = s["name"].as<String>();
-                break;
-            }
-        }
-        String logDetail = "Slot " + String(slot) + " assigned: " + medName;
-        StorageManager::appendLog("medicine_assign", logDetail);
-    }
+
 
     JsonDocument resp;
     resp["success"] = true;
@@ -858,4 +849,69 @@ void ApiManager::_handleGetLogs() {
     doc["message"] = "ok";
     doc["data"] = logs;
     _sendJson(200, doc);
+}
+
+void ApiManager::_handlePostLog() {
+    JsonDocument d;
+    DeserializationError error = deserializeJson(d, _server.arg("plain"));
+    if (error) {
+        _sendError(400, "Invalid JSON");
+        return;
+    }
+    
+    String type = d["type"].as<String>();
+    String detail = d["detail"].as<String>();
+    
+    if (type.length() > 0 && detail.length() > 0) {
+        StorageManager::appendLog(type, detail);
+        
+        JsonDocument r;
+        r["success"] = true;
+        r["message"] = "Log appended";
+        _sendJson(200, r);
+    } else {
+        _sendError(400, "type and detail required");
+    }
+}
+
+void ApiManager::_handleDeleteLogs() {
+    StorageManager::clearLogs();
+    
+    JsonDocument r;
+    r["success"] = true;
+    r["message"] = "Logs cleared";
+    _sendJson(200, r);
+}
+
+void ApiManager::_handlePostTime() {
+    JsonDocument d;
+    deserializeJson(d, _server.arg("plain"));
+    if (d["time"].is<uint32_t>()) {
+        uint32_t epoch = d["time"].as<uint32_t>();
+        timeval tv = { (time_t)epoch, 0 };
+        timezone tz = { 0, 0 };
+        settimeofday(&tv, &tz);
+        megaTimeSynced = true;
+        Serial.print(F("[API] System time set from phone: "));
+        Serial.println(epoch);
+        
+        // Also sync it to Mega RTC if capabilities rtc is true
+        if (SerialBridge::capabilitiesKnown() && SerialBridge::getCachedCapabilities()["rtc"].as<bool>()) {
+            JsonDocument pl;
+            pl["time"] = epoch;
+            JsonObject plObj = pl.as<JsonObject>();
+            SerialBridge::sendCommand("set_time", plObj, [](bool ok, JsonVariant data) {
+                if (ok) {
+                    Serial.println(F("[API] Successfully set time on Mega RTC"));
+                }
+            }, 3000);
+        }
+        
+        JsonDocument resp;
+        resp["success"] = true;
+        resp["message"] = "Time synchronized";
+        _sendJson(200, resp);
+    } else {
+        _sendError(400, "time required");
+    }
 }

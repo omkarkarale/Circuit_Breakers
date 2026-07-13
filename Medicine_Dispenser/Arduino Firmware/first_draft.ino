@@ -19,6 +19,7 @@
 #include <LiquidCrystal_I2C.h>        // I2C-based 16x2 character LCD driver
 #include <RTClib.h>                   // Real-Time Clock (DS3231) library
 #include <EEPROM.h>                   // Non-volatile storage so medicine schedules persist across reboots
+#include <ArduinoJson.h>              // Newline-delimited ESP8266 bridge protocol
 
 #define IR 8                          // Digital pin connected to the IR "pill tray" sensor
 
@@ -30,6 +31,10 @@ unsigned long lastReminder = 0;       // millis() timestamp of the last audio re
 const unsigned long reminderInterval = 5000;   // 5 seconds - how often to repeat the "take your medicine" reminder sound
 
 String message;                       // Buffer holding the most recent line read from Serial (from ESP8266/PC)
+
+// ESP8266 link: Mega Serial3 (RX3=15, TX3=14), 9600 baud, one JSON object per
+// line. USB Serial remains available for local diagnostics only.
+String espRxBuffer;
 
 RTC_DS3231 rtc;                       // RTC object used to read the current date/time
 // Common I2C addresses: 0x27 or 0x3F
@@ -149,6 +154,11 @@ void Dispense(bool Dispenser_slot[]) {
     lcd.print(medicines[2].medicineName);
     delay(4000);
   }
+  // Turn each selected carousel once before asking the user to collect it.
+  // The original draft configured these motors but never drove them.
+  if (Dispenser_slot[0]) myStepper1.step(stepsPerRevolution);
+  if (Dispenser_slot[1]) myStepper2.step(stepsPerRevolution);
+  if (Dispenser_slot[2]) myStepper3.step(stepsPerRevolution);
     // Prompt the user to take their medicine
     lcd.clear();
     lcd.setCursor(0, 0);
@@ -173,6 +183,127 @@ void Dispense(bool Dispenser_slot[]) {
   lcd.setCursor(3, 1);
   lcd.print("Thank You");
   delay(4000);
+}
+
+// Send exactly one JSON line to the ESP. Never send diagnostic text on Serial3.
+void SendEspJson(JsonDocument& doc) {
+  serializeJson(doc, Serial3);
+  Serial3.println();
+}
+
+void SendResponse(int id, bool ok, const char* error = nullptr) {
+  JsonDocument doc;
+  doc["type"] = "resp";
+  doc["id"] = id;
+  doc["ok"] = ok;
+  if (error != nullptr) doc["error"] = error;
+  SendEspJson(doc);
+}
+
+void SendTestResponse(int id, bool pass, const char* detail) {
+  JsonDocument doc;
+  doc["type"] = "resp";
+  doc["id"] = id;
+  doc["ok"] = true;
+  JsonObject data = doc["data"].to<JsonObject>();
+  data["pass"] = pass;
+  data["detail"] = detail;
+  SendEspJson(doc);
+}
+
+void SendDispenseComplete(bool slots[], bool detected) {
+  for (byte i = 0; i < 3; i++) {
+    if (!slots[i]) continue;
+    JsonDocument doc;
+    doc["type"] = "evt";
+    doc["name"] = "dispense_complete";
+    JsonObject data = doc["data"].to<JsonObject>();
+    data["slot"] = i + 1;
+    data["detected"] = detected;
+    SendEspJson(doc);
+  }
+}
+
+DateTime EpochToDateTime(uint32_t epoch) {
+  return DateTime(epoch);
+}
+
+void HandleEspCommand(const String& line) {
+  JsonDocument request;
+  if (deserializeJson(request, line)) return;
+  if (request["type"].as<String>() != "cmd" || !request["id"].is<int>() || !request["op"].is<const char*>()) return;
+
+  const int id = request["id"].as<int>();
+  const String op = request["op"].as<String>();
+
+  if (op == "ping") {
+    SendResponse(id, true);
+  } else if (op == "get_capabilities") {
+    JsonDocument response;
+    response["type"] = "resp";
+    response["id"] = id;
+    response["ok"] = true;
+    JsonObject data = response["data"].to<JsonObject>();
+    data["rtc"] = true;
+    data["speaker"] = true;
+    data["display"] = true;
+    data["ir"] = true;
+    JsonArray steppers = data["steppers"].to<JsonArray>();
+    steppers.add(true); steppers.add(true); steppers.add(true);
+    SendEspJson(response);
+  } else if (op == "get_time") {
+    JsonDocument response;
+    response["type"] = "resp";
+    response["id"] = id;
+    response["ok"] = true;
+    response["data"]["time"] = rtc.now().unixtime();
+    SendEspJson(response);
+  } else if (op == "set_time") {
+    if (!request["time"].is<uint32_t>()) { SendResponse(id, false, "time required"); return; }
+    rtc.adjust(EpochToDateTime(request["time"].as<uint32_t>()));
+    SendResponse(id, true);
+  } else if (op == "lcd") {
+    if (!request["line1"].is<const char*>() || !request["line2"].is<const char*>()) { SendResponse(id, false, "line1 and line2 required"); return; }
+    lcd.clear();
+    lcd.setCursor(0, 0); lcd.print(request["line1"].as<const char*>());
+    lcd.setCursor(0, 1); lcd.print(request["line2"].as<const char*>());
+    SendResponse(id, true);
+  } else if (op == "play_sound") {
+    player.play(1);
+    SendResponse(id, true);
+  } else if (op == "get_status") {
+    JsonDocument response;
+    response["type"] = "resp";
+    response["id"] = id;
+    response["ok"] = true;
+    response["data"]["state"] = "ready";
+    response["data"]["last_dispense"] = lastDispenseHour < 0 ? 0 : rtc.now().unixtime();
+    SendEspJson(response);
+  } else if (op == "test") {
+    String component = request["component"] | "";
+    int slot = request["slot"] | 0;
+    if (component == "rtc") SendTestResponse(id, rtc.now().year() >= 2000, "RTC responding");
+    else if (component == "ir") SendTestResponse(id, true, digitalRead(IR) == LOW ? "IR detected" : "IR ready");
+    else if (component == "speaker") { player.play(1); SendTestResponse(id, true, "Sound started"); }
+    else if (component == "display") { lcd.clear(); lcd.print("Display test"); SendTestResponse(id, true, "Display updated"); }
+    else if (component == "stepper" && slot >= 1 && slot <= 3) SendTestResponse(id, true, "Stepper configured");
+    else SendTestResponse(id, false, "Unsupported component");
+  } else if (op == "dispense") {
+    int slot = request["slot"] | 0;
+    if (slot < 1 || slot > 3) { SendResponse(id, false, "slot must be 1-3"); return; }
+    bool selected[3] = { false, false, false };
+    selected[slot - 1] = true;
+    JsonDocument response;
+    response["type"] = "resp";
+    response["id"] = id;
+    response["ok"] = true;
+    response["data"]["status"] = "started";
+    SendEspJson(response);
+    Dispense(selected);
+    SendDispenseComplete(selected, digitalRead(IR) == LOW);
+  } else {
+    SendResponse(id, false, "unsupported operation");
+  }
 }
 
 // Checks the current time against every enabled medicine's schedule and
@@ -371,31 +502,18 @@ void Debug_Machine() {
   DisplayMedicines();
 }
 
-// Listens on the main Serial port for commands sent from a companion
-// device (e.g. ESP8266) or PC, in the form "key=value", and dispatches:
-//   New_med=<data>  -> parse and store a new medicine schedule
-//   Debug=<...>     -> dump current medicine configuration/status
+// Reads newline-delimited JSON commands from the ESP8266 on Serial3.
 void Serial_ESP() {
-  // while (Serial3.available()) {
-  //   Serial.write(Serial3.read());
-  // }
-  char data[100];
-  if (Serial.available()) {
-    message = Serial.readStringUntil('\n');  // Read one line of input
-    Serial.println(message);                 // Echo it back for debugging
-    int pos = message.indexOf('=');          // Split into key/value on '='
-    String key = message.substring(0, pos);
-    String value = message.substring(pos + 1);
-
-    if (key == "New_med") {
-      value.toCharArray(data, sizeof(data));
-      NewMedicine(data);
-    } else if (key == "Debug") {
-      Debug_Machine();
-      Empty_Slot();
-
+  while (Serial3.available()) {
+    char c = (char)Serial3.read();
+    if (c == '\n') {
+      if (espRxBuffer.length() > 0) HandleEspCommand(espRxBuffer);
+      espRxBuffer = "";
+    } else if (c != '\r') {
+      if (espRxBuffer.length() < 512) espRxBuffer += c;
+      else espRxBuffer = "";  // Drop an overlong malformed frame.
+    }
   }
-}
 }
 
 // Arduino setup routine: initializes all peripherals (steppers, I2C bus,

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ApiClient, DiagnosticItem } from '../services/apiClient';
+import { ApiClient, DiagnosticItem, appendLog } from '../services/apiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface ComponentEntry {
@@ -9,29 +9,21 @@ interface ComponentEntry {
   item: DiagnosticItem & { testing?: boolean };
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-const LABEL_MAP: Record<string, { label: string; icon: string }> = {
-  wifi:     { label: 'Wi-Fi Module',      icon: 'wifi' },
-  rtc:      { label: 'RTC Clock',         icon: 'schedule' },
-  stepper1: { label: 'Slot 1 Motor',      icon: 'settings_motion_mode' },
-  stepper2: { label: 'Slot 2 Motor',      icon: 'settings_motion_mode' },
-  stepper3: { label: 'Slot 3 Motor',      icon: 'settings_motion_mode' },
-  ir:       { label: 'IR Drop Sensor',    icon: 'sensors' },
-  speaker:  { label: 'Audio Buzzer',      icon: 'volume_up' },
-  storage:  { label: 'LittleFS Storage',  icon: 'storage' },
-  memory:   { label: 'System Memory',     icon: 'memory' },
-  firmware: { label: 'Firmware',          icon: 'deployed_code' },
-};
+// ─── Constant Setup ───────────────────────────────────────────────────────────
+const DIAGNOSTIC_KEYS = ['wifi', 'rtc', 'stepper1', 'stepper2', 'stepper3', 'ir', 'speaker'];
 
-// Per-motor accent config
-const MOTOR_CONFIG: Record<string, { slot: number; accent: string; accentBg: string; accentDark: string }> = {
-  stepper1: { slot: 1, accent: 'text-teal-600',   accentBg: 'bg-teal-50   dark:bg-teal-900/25',   accentDark: 'dark:text-teal-400'   },
-  stepper2: { slot: 2, accent: 'text-violet-600', accentBg: 'bg-violet-50 dark:bg-violet-900/25', accentDark: 'dark:text-violet-400' },
-  stepper3: { slot: 3, accent: 'text-amber-600',  accentBg: 'bg-amber-50  dark:bg-amber-900/25',  accentDark: 'dark:text-amber-400'  },
+const LABEL_MAP: Record<string, { label: string; icon: string; description: string }> = {
+  wifi:     { label: 'Wi-Fi Module',      icon: 'wifi',                 description: 'Local connection and signal status' },
+  rtc:      { label: 'RTC Clock',         icon: 'schedule',             description: 'Real-time hardware clock sync' },
+  stepper1: { label: 'Slot 1 Motor',      icon: 'settings_motion_mode',  description: 'Drives cartridge #1' },
+  stepper2: { label: 'Slot 2 Motor',      icon: 'settings_motion_mode',  description: 'Drives cartridge #2' },
+  stepper3: { label: 'Slot 3 Motor',      icon: 'settings_motion_mode',  description: 'Drives cartridge #3' },
+  ir:       { label: 'IR Drop Sensor',    icon: 'sensors',              description: 'Detects pills as they drop' },
+  speaker:  { label: 'Audio Buzzer',      icon: 'volume_up',            description: 'Alert alarms and audio beeps' },
 };
 
 function getLabelInfo(key: string) {
-  return LABEL_MAP[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), icon: 'developer_board' };
+  return LABEL_MAP[key] ?? { label: key.charAt(0).toUpperCase() + key.slice(1), icon: 'developer_board', description: '' };
 }
 
 function formatRelative(unixSec: number | null | undefined): string {
@@ -43,110 +35,55 @@ function formatRelative(unixSec: number | null | undefined): string {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+const INITIAL_ENTRIES: ComponentEntry[] = DIAGNOSTIC_KEYS.map(key => {
+  const { label, icon } = getLabelInfo(key);
+  return {
+    key,
+    label,
+    icon,
+    item: {
+      status: 'unknown',
+      lastChecked: 0,
+      detail: ''
+    }
+  };
+});
+
 // ─── Status Chip ──────────────────────────────────────────────────────────────
 function StatusChip({ status, testing }: { status: string; testing?: boolean }) {
   if (testing) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/30">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/50 dark:border-blue-800/30 animate-pulse">
         <span className="material-symbols-outlined text-[10px] animate-spin">sync</span>
         Testing
       </span>
     );
   }
-  if (status === 'fail') return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/30">
-      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-      FAIL
+  if (status === 'fail') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/30">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+        FAIL
+      </span>
+    );
+  }
+  if (status === 'ok') {
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-455 border border-emerald-200/50 dark:border-emerald-800/30">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+        OK
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-slate-50 dark:bg-slate-950/40 text-slate-500 dark:text-slate-405 border border-slate-200/50 dark:border-slate-800/30">
+      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+      UNKNOWN
     </span>
   );
-  return null;
 }
 
-// ─── Motor Card (Stepper Motors only) ────────────────────────────────────────
-function MotorCard({
-  entry,
-  onTest,
-}: {
-  entry: ComponentEntry;
-  onTest: (key: string) => void;
-}) {
-  const { key, item } = entry;
-  const cfg = MOTOR_CONFIG[key];
-  const isFail = item.status === 'fail';
-  const isTesting = !!item.testing;
-
-  return (
-    <div className={`rounded-2xl border p-4 shadow-sm transition-all duration-200 ${
-      isFail
-        ? 'bg-rose-50/60 dark:bg-rose-950/20 border-rose-200 dark:border-rose-800/40'
-        : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
-    }`}>
-      {/* Slot badge + title row */}
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-3">
-          {/* Slot number pill */}
-          <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 text-xl font-black ${
-            isFail
-              ? 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400'
-              : `${cfg.accentBg} ${cfg.accent} ${cfg.accentDark}`
-          }`}>
-            {cfg.slot}
-          </div>
-          <div>
-            <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">Slot {cfg.slot} Motor</p>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">Drives pill cartridge #{cfg.slot}</p>
-          </div>
-        </div>
-        {(isFail || isTesting) && <StatusChip status={item.status} testing={isTesting} />}
-      </div>
-
-      {/* Status line */}
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-          isTesting  ? 'bg-blue-500 animate-pulse' :
-          isFail     ? 'bg-rose-500' :
-          item.status === 'ok' ? 'bg-emerald-500' : 'bg-slate-400'
-        }`} />
-        <p className="text-[9px] font-mono text-slate-400 dark:text-slate-500">
-          Checked: {formatRelative(item.lastChecked)}
-        </p>
-      </div>
-
-      {/* Detail */}
-      {item.detail && (
-        <p className={`text-[10px] font-medium px-2.5 py-2 rounded-lg leading-relaxed mb-3 ${
-          isFail
-            ? 'bg-rose-100/60 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300'
-            : 'bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400'
-        }`}>
-          {item.detail}
-        </p>
-      )}
-
-      {/* Test button */}
-      <button
-        type="button"
-        onClick={() => onTest(key)}
-        disabled={isTesting}
-        className={`w-full h-8 text-[10px] font-bold rounded-xl transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-1 border ${
-          isTesting
-            ? 'border-slate-200 dark:border-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed bg-transparent'
-            : isFail
-              ? 'border-rose-300 dark:border-rose-800/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20'
-              : `border-slate-200 dark:border-slate-800 ${cfg.accent} ${cfg.accentDark} hover:${cfg.accentBg} hover:border-${cfg.accent.split('-')[1]}-300`
-        }`}
-      >
-        {isTesting ? (
-          <><span className="material-symbols-outlined text-sm animate-spin">sync</span><span>Testing motor...</span></>
-        ) : (
-          <><span className="material-symbols-outlined text-sm">play_circle</span><span>Test Motor</span></>
-        )}
-      </button>
-    </div>
-  );
-}
-
-// ─── Single Component Card ─────────────────────────────────────────────────────
+// ─── Component Card ────────────────────────────────────────────────────────────
 function ComponentCard({
   entry,
   onTest,
@@ -157,6 +94,7 @@ function ComponentCard({
   const { key, label, icon, item } = entry;
   const isFail = item.status === 'fail';
   const isTesting = !!item.testing;
+  const description = LABEL_MAP[key]?.description || '';
 
   return (
     <div className={`rounded-2xl border p-4 space-y-3 shadow-sm transition-all duration-200 ${
@@ -176,12 +114,25 @@ function ComponentCard({
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-800 dark:text-white leading-tight">{label}</p>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5 font-mono">
-              Checked: {formatRelative(item.lastChecked)}
-            </p>
+            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{description}</p>
           </div>
         </div>
-        {(isFail || isTesting) && <StatusChip status={item.status} testing={isTesting} />}
+        <StatusChip status={item.status} testing={isTesting} />
+      </div>
+
+      {/* Status info line */}
+      <div className="flex items-center justify-between text-[9px] font-mono text-slate-400 dark:text-slate-500 border-t border-slate-105 dark:border-slate-800/60 pt-2">
+        <div className="flex items-center gap-1.5">
+          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+            isTesting  ? 'bg-blue-500 animate-pulse' :
+            isFail     ? 'bg-rose-500' :
+            item.status === 'ok' ? 'bg-emerald-500' : 'bg-slate-400'
+          }`} />
+          <span className="uppercase font-bold tracking-wider">
+            {isTesting ? 'Testing' : item.status || 'unknown'}
+          </span>
+        </div>
+        <span>Checked: {formatRelative(item.lastChecked)}</span>
       </div>
 
       {/* Detail string */}
@@ -268,26 +219,53 @@ function SummaryBanner({ entries, running }: { entries: ComponentEntry[]; runnin
 
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function DiagnosticsView() {
-  const [entries, setEntries] = useState<ComponentEntry[]>([]);
+  const [entries, setEntries] = useState<ComponentEntry[]>(INITIAL_ENTRIES);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [dispenserOffline, setDispenserOffline] = useState(false);
   const [fullTestRunning, setFullTestRunning] = useState(false);
 
   // ── fetch initial diagnostics ─────────────────────────────────────────────
   const fetchDiagnostics = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setDispenserOffline(false);
     try {
+      console.log('[DiagnosticsView] Fetching dispenser hardware diagnostics status...');
       const res = await ApiClient.getDiagnostics();
-      if (res && res.data) {
-        const mapped = Object.entries(res.data).map(([key, item]) => {
-          const { label, icon } = getLabelInfo(key);
-          return { key, label, icon, item };
+      console.log('[DiagnosticsView] Fetched diagnostics successfully:', res);
+      const apiData = res?.data || {};
+
+      setEntries(prev => {
+        const current = prev.length ? prev : INITIAL_ENTRIES;
+        return current.map(entry => {
+          const apiItem = apiData[entry.key];
+          if (apiItem) {
+            return {
+              ...entry,
+              item: {
+                ...entry.item,
+                status: apiItem.status || 'unknown',
+                lastChecked: apiItem.lastChecked || 0,
+                detail: apiItem.detail || ''
+              }
+            };
+          }
+          return entry;
         });
-        setEntries(mapped);
-      }
-    } catch {
-      setError('Could not reach dispenser diagnostics.');
+      });
+    } catch (err) {
+      console.warn('[DiagnosticsView] Failed to reach dispenser diagnostics:', err);
+      setDispenserOffline(true);
+      // Mark all components as offline/unknown detail
+      setEntries(prev => {
+        const current = prev.length ? prev : INITIAL_ENTRIES;
+        return current.map(entry => ({
+          ...entry,
+          item: {
+            ...entry.item,
+            detail: entry.item.detail || 'Dispenser offline / unreachable'
+          }
+        }));
+      });
     } finally {
       setLoading(false);
     }
@@ -297,12 +275,18 @@ export default function DiagnosticsView() {
 
   // ── test single component ─────────────────────────────────────────────────
   const handleTest = useCallback(async (key: string) => {
-    // Mark that component as testing
+    // Mark component as testing
     setEntries(prev => prev.map(e =>
       e.key === key ? { ...e, item: { ...e.item, testing: true } } : e
     ));
     try {
+      console.log(`[DiagnosticsView] API request starting: POST /api/v1/diagnostics/test/${key}`);
       const res = await ApiClient.testDiagnosticComponent(key);
+      console.log(`[DiagnosticsView] API request finished successfully for ${key}:`, res);
+      
+      const componentName = LABEL_MAP[key]?.label || key;
+      await appendLog('connection', `Diagnostics: ${componentName} test ${res.pass ? 'passed' : 'failed'} — ${res.detail}`);
+
       setEntries(prev => prev.map(e => {
         if (e.key !== key) return e;
         return {
@@ -316,46 +300,70 @@ export default function DiagnosticsView() {
           }
         };
       }));
-    } catch {
+    } catch (err) {
+      console.error(`[DiagnosticsView] API request failed for component ${key}:`, err);
+      const componentName = LABEL_MAP[key]?.label || key;
+      await appendLog('connection', `Diagnostics: ${componentName} test failed — request timeout or offline`);
+
       setEntries(prev => prev.map(e =>
         e.key === key
-          ? { ...e, item: { ...e.item, testing: false, status: 'unknown', detail: 'Test request failed.' } }
+          ? { ...e, item: { ...e.item, testing: false, status: 'fail', detail: 'Test request failed / offline' } }
           : e
       ));
     }
   }, []);
 
-  // ── run full test ─────────────────────────────────────────────────────────
+  // ── run full test sequentially ────────────────────────────────────────────
   const handleFullTest = useCallback(async () => {
     if (fullTestRunning) return;
     setFullTestRunning(true);
-    // Mark ALL as testing
     setEntries(prev => prev.map(e => ({ ...e, item: { ...e.item, testing: true } })));
-    try {
-      const res = await ApiClient.testAllDiagnostics();
-      if (res && res.data) {
-        const now = Math.floor(Date.now() / 1000);
+
+    await appendLog('connection', 'Diagnostics: Started full hardware diagnostics test suite');
+
+    for (const key of DIAGNOSTIC_KEYS) {
+      try {
+        console.log(`[DiagnosticsView] Sequential Test: Starting test for ${key}`);
+        const res = await ApiClient.testDiagnosticComponent(key);
+        console.log(`[DiagnosticsView] Sequential Test: Success for ${key}:`, res);
+        
+        const componentName = LABEL_MAP[key]?.label || key;
+        await appendLog('connection', `Diagnostics: ${componentName} test ${res.pass ? 'passed' : 'failed'} — ${res.detail}`);
+
         setEntries(prev => prev.map(e => {
-          const result = res.data[e.key];
-          if (!result) return { ...e, item: { ...e.item, testing: false } };
+          if (e.key !== key) return e;
           return {
             ...e,
             item: {
               ...e.item,
               testing: false,
-              status: result.pass ? 'ok' : 'fail',
-              detail: result.detail,
-              lastChecked: now
+              status: res.pass ? 'ok' : 'fail',
+              detail: res.detail,
+              lastChecked: (res as any).lastChecked ?? Math.floor(Date.now() / 1000)
+            }
+          };
+        }));
+      } catch (err) {
+        console.error(`[DiagnosticsView] Sequential Test: Failed for ${key}:`, err);
+        const componentName = LABEL_MAP[key]?.label || key;
+        await appendLog('connection', `Diagnostics: ${componentName} test failed — request timeout or offline`);
+
+        setEntries(prev => prev.map(e => {
+          if (e.key !== key) return e;
+          return {
+            ...e,
+            item: {
+              ...e.item,
+              testing: false,
+              status: 'fail',
+              detail: 'Test failed / offline'
             }
           };
         }));
       }
-    } catch {
-      // On failure clear testing flags
-      setEntries(prev => prev.map(e => ({ ...e, item: { ...e.item, testing: false, status: 'unknown' } })));
-    } finally {
-      setFullTestRunning(false);
     }
+    await appendLog('connection', 'Diagnostics: Full hardware diagnostics test suite completed');
+    setFullTestRunning(false);
   }, [fullTestRunning]);
 
   // ── loading state ─────────────────────────────────────────────────────────
@@ -368,31 +376,23 @@ export default function DiagnosticsView() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-6 gap-4">
-        <span className="material-symbols-outlined text-4xl text-rose-500">error</span>
-        <p className="text-sm font-bold text-slate-800 dark:text-white">{error}</p>
-        <button
-          type="button"
-          onClick={fetchDiagnostics}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl cursor-pointer"
-        >
-          Retry
-        </button>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-5 pb-6 font-sans animate-fade-in">
 
       {/* Header */}
-      <div>
-        <h1 className="text-lg font-bold text-slate-800 dark:text-white">Hardware Diagnostics</h1>
-        <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-widest mt-0.5">
-          {entries.length} component{entries.length !== 1 ? 's' : ''} detected
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold text-slate-800 dark:text-white">Hardware Diagnostics</h1>
+          <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-widest mt-0.5">
+            {entries.length} component{entries.length !== 1 ? 's' : ''} monitored
+          </p>
+        </div>
+        {dispenserOffline && (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-455 border border-rose-200/50 dark:border-rose-800/30">
+            <span className="material-symbols-outlined text-xs">wifi_off</span>
+            Offline
+          </span>
+        )}
       </div>
 
       {/* Summary / Progress Banner */}
@@ -400,32 +400,9 @@ export default function DiagnosticsView() {
 
       {/* Component Cards */}
       <div className="space-y-3">
-        {/* Stepper motors as a dedicated grouped section */}
-        {entries.some(e => e.key.startsWith('stepper')) && (
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 px-1">Pill Dispensing Motors</p>
-            <div className="grid grid-cols-3 gap-2">
-              {entries
-                .filter(e => e.key.startsWith('stepper'))
-                .sort((a, b) => a.key.localeCompare(b.key))
-                .map(entry => (
-                  <MotorCard key={entry.key} entry={entry} onTest={handleTest} />
-                ))}
-            </div>
-          </div>
-        )}
-
-        {/* All other components */}
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-2 px-1">System Components</p>
-          <div className="space-y-3">
-            {entries
-              .filter(e => !e.key.startsWith('stepper'))
-              .map(entry => (
-                <ComponentCard key={entry.key} entry={entry} onTest={handleTest} />
-              ))}
-          </div>
-        </div>
+        {entries.map(entry => (
+          <ComponentCard key={entry.key} entry={entry} onTest={handleTest} />
+        ))}
       </div>
 
       {/* Run Full Hardware Test */}

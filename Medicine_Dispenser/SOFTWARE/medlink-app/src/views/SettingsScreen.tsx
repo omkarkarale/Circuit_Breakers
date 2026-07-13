@@ -113,7 +113,7 @@ export default function SettingsScreen({ onNavigate }: SettingsScreenProps) {
 
   const triggerSaveFeedback = (msg: string) => {
     setSaveIndicator(msg);
-    setTimeout(() => setSaveIndicator(''), 1500);
+    setTimeout(() => setSaveIndicator(''), 5000);
   };
 
   const saveSettingsToDispenser = async (
@@ -241,7 +241,7 @@ export default function SettingsScreen({ onNavigate }: SettingsScreenProps) {
           setTimeout(() => {
             setShowWifiModal(false);
             setWifiConnectingState('idle');
-          }, 1500);
+          }, 5000);
         }
       } catch {
         // ignore

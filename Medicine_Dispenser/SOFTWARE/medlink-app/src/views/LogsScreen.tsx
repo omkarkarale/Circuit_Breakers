@@ -22,6 +22,7 @@ type LogFilter = typeof LOG_FILTERS[number]['key'];
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function relativeTime(ts: number): string {
+  if (!ts || isNaN(ts)) return 'Unknown relative time';
   const seconds = Math.max(0, Math.floor(Date.now() / 1000) - ts);
   if (seconds < 60) return 'Just now';
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
@@ -35,8 +36,18 @@ function logTypeLabel(type: string): string {
 
 // ─── Log Row ──────────────────────────────────────────────────────────────────
 
+function formatAbsoluteTime(ts: number): string {
+  if (!ts || isNaN(ts)) return 'Unknown date/time';
+  const d = new Date(ts * 1000);
+  if (isNaN(d.getTime())) return 'Unknown date/time';
+  return d.toLocaleString([], { hour: '2-digit', minute: '2-digit', hour12: true }) + ' • ' + d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+}
+
 function LogRow({ log, isLast }: { log: LogItem; isLast: boolean }) {
   const { icon, color } = activityIcon(log.type);
+  
+  const slotMatch = log.detail.match(/Slot\s+(\d+)/i);
+  const slotNum = slotMatch ? slotMatch[1] : null;
 
   // Map type → bg classes for icon badge and label chip
   const bgMap: Record<string, string> = {
@@ -57,7 +68,7 @@ function LogRow({ log, isLast }: { log: LogItem; isLast: boolean }) {
     missed:           'bg-rose-100 dark:bg-rose-900/40 text-rose-700 dark:text-rose-400',
     refill:           'bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400',
     medicine_assign:  'bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-400',
-    medicine_removed: 'bg-rose-100 dark:bg-rose-900/40 text-rose-600 dark:text-rose-400',
+    medicine_removed: 'bg-rose-100 dark:bg-rose-900/40 text-rose-605 dark:text-rose-400',
     setting_change:   'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400',
     connection:       'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400',
   };
@@ -77,12 +88,18 @@ function LogRow({ log, isLast }: { log: LogItem; isLast: boolean }) {
           <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 leading-relaxed">
             {log.detail}
           </p>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center gap-2 mt-1.5">
             <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md ${chipCls}`}>
               {logTypeLabel(log.type)}
             </span>
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">
-              {relativeTime(log.ts)}
+            {slotNum && (
+              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-md bg-teal-50 dark:bg-teal-950 text-teal-650 dark:text-teal-400 border border-teal-200/20 dark:border-teal-800/20">
+                Slot {slotNum}
+              </span>
+            )}
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono flex items-center gap-1">
+              <span className="material-symbols-outlined text-[10px]">schedule</span>
+              {relativeTime(log.ts)} ({formatAbsoluteTime(log.ts)})
             </span>
           </div>
         </div>
@@ -126,7 +143,24 @@ export default function LogsView({ onNavigate }: { onNavigate: (screen: string) 
       try {
         const res = await ApiClient.getLogs();
         if (active) {
-          setLogs(res.data || []);
+          const fetchedLogs = res.data || [];
+          fetchedLogs.sort((a, b) => b.ts - a.ts);
+          if (fetchedLogs.length >= 200) {
+            console.warn('[LogsView] Logs limit reached (200 entries). Auto-clearing logs...');
+            try {
+              await ApiClient.clearLogs();
+              setLogs([{
+                ts: Math.floor(Date.now() / 1000),
+                type: 'connection',
+                detail: 'Logs auto-cleared (reached limit of 200 entries)'
+              }]);
+            } catch (clearErr) {
+              console.error('[LogsView] Failed to auto-clear logs:', clearErr);
+              setLogs(fetchedLogs);
+            }
+          } else {
+            setLogs(fetchedLogs);
+          }
           setLastRefreshed(Date.now());
         }
       } catch {
@@ -188,7 +222,7 @@ export default function LogsView({ onNavigate }: { onNavigate: (screen: string) 
             </p>
           </div>
           {/* Live indicator */}
-          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase">
+          <div className="flex items-center gap-1.5 text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase shrink-0">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             {loading ? 'Refreshing...' : updatedLabel}
           </div>

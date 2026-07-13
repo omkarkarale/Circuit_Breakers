@@ -33,6 +33,7 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
     DAYS.map(d => d.value)
   );
   const [times, setTimes] = useState<string[]>(['08:00']);
+  const [originalMed, setOriginalMed] = useState<MedicineEntry | null>(null);
 
   const allDaysSelected = selectedDays.length === DAYS.length;
 
@@ -65,6 +66,7 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
           const match = res.data.find(m => m.slot === slotNumber);
           if (match && match.assigned) {
             setIsEditMode(true);
+            setOriginalMed(match);
             setName(match.name || '');
             setRemainingPills(typeof match.remainingPills === 'number' ? match.remainingPills : 30);
             setDosePerReminder(typeof match.dosePerReminder === 'number' ? match.dosePerReminder : 1);
@@ -80,6 +82,7 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
             setTimes(match.times && match.times.length > 0 ? match.times : ['08:00']);
           } else {
             setIsEditMode(false);
+            setOriginalMed(null);
             // Default new slot configuration
             setName('');
             setRemainingPills(30);
@@ -101,6 +104,7 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
 
   // Times Helpers
   const handleAddTime = () => {
+    if (times.length >= 5) return;
     setTimes(prev => [...prev, '08:00']);
   };
 
@@ -129,11 +133,47 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
       times: times.filter(t => !!t)
     };
 
+    const changes: string[] = [];
+    if (isEditMode && originalMed) {
+      const oldNameClean = (originalMed.name || '').trim();
+      const newNameClean = name.trim();
+      if (oldNameClean !== newNameClean) {
+        changes.push(`name changed from "${oldNameClean}" to "${newNameClean}"`);
+      }
+      if (originalMed.remainingPills !== remainingPills) {
+        changes.push(`pill count changed from ${originalMed.remainingPills} to ${remainingPills}`);
+      }
+      if (originalMed.dosePerReminder !== dosePerReminder) {
+        changes.push(`dose per reminder changed from ${originalMed.dosePerReminder} to ${dosePerReminder}`);
+      }
+      const newFreqClean = serializeRepeatFrequency(selectedDays).trim().toLowerCase();
+      const oldFreqClean = (originalMed.repeatFrequency || '').trim().toLowerCase();
+      if (oldFreqClean !== newFreqClean) {
+        changes.push(`repeat frequency changed from "${originalMed.repeatFrequency}" to "${serializeRepeatFrequency(selectedDays)}"`);
+      }
+      const newTimes = times.filter(t => !!t).sort();
+      const oldTimes = [...(originalMed.times || [])].sort();
+      if (JSON.stringify(oldTimes) !== JSON.stringify(newTimes)) {
+        changes.push(`time slots changed from [${oldTimes.join(', ')}] to [${newTimes.join(', ')}]`);
+      }
+      if (originalMed.lowStockThreshold !== lowStockThreshold) {
+        changes.push(`low stock threshold changed from ${originalMed.lowStockThreshold} to ${lowStockThreshold}`);
+      }
+    }
+
     try {
       const res = await ApiClient.updateMedicine(slotNumber, payload);
       if (res && res.success) {
-        const verb = isEditMode ? 'updated' : 'assigned';
-        await appendLog('medicine_assign', `Slot ${slotNumber} ${verb}: ${name.trim()} — ${remainingPills} pills, ${dosePerReminder} per dose`);
+        if (isEditMode) {
+          if (changes.length > 0) {
+            for (const change of changes) {
+              await appendLog('medicine_assign', `Slot ${slotNumber} (${name.trim()}): ${change}`);
+            }
+          }
+        } else {
+          const logMsg = `Slot ${slotNumber} configured: ${name.trim()} (${remainingPills} pills, repeat: ${serializeRepeatFrequency(selectedDays)}, times: [${times.filter(t => !!t).join(', ')}])`;
+          await appendLog('medicine_assign', logMsg);
+        }
         onNavigate('home');
       } else {
         alert('Could not update slot configuration.');
@@ -152,7 +192,11 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
       try {
         const res = await ApiClient.deleteMedicine(slotNumber);
         if (res && res.success) {
-          await appendLog('medicine_removed', `Slot ${slotNumber} cleared (medicine removed)`);
+          const oldName = originalMed ? originalMed.name : '';
+          const logDetail = oldName 
+            ? `Slot ${slotNumber} cleared (${oldName.trim()} removed)`
+            : `Slot ${slotNumber} cleared (unassigned)`;
+          await appendLog('medicine_removed', logDetail);
           onNavigate('home');
         } else {
           alert('Failed to clear slot.');
@@ -343,7 +387,12 @@ export default function AddEditMedicineView({ medicineId, onNavigate }: AddEditM
                 <button
                   type="button"
                   onClick={handleAddTime}
-                  className="text-xs font-bold text-teal-655 dark:text-teal-400 hover:text-teal-700 flex items-center gap-0.5"
+                  disabled={times.length >= 5}
+                  className={`text-xs font-bold flex items-center gap-0.5 ${
+                    times.length >= 5
+                      ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                      : 'text-teal-655 dark:text-teal-400 hover:text-teal-700 cursor-pointer'
+                  }`}
                 >
                   <span className="material-symbols-outlined text-sm font-bold">add</span>
                   <span>Add Time</span>

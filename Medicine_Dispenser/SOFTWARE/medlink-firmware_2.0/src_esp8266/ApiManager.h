@@ -50,7 +50,10 @@ private:
     static void _handleWifiForget();
     static void _handleReboot();
     static void _handleFactoryReset();
+    static void _handlePostTime();
     static void _handleGetLogs();
+    static void _handlePostLog();
+    static void _handleDeleteLogs();
     static void _handleCaptivePortal();
     static void _handleOptions();
 

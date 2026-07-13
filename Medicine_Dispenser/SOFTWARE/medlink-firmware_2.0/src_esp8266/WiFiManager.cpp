@@ -204,8 +204,8 @@ void WiFiManager::update() {
         case WIFI_STATE_CONNECTING: {
             if (WiFi.status() == WL_CONNECTED) {
                 transitionTo(WIFI_STATE_CONNECTED);
-            } else if (millis() - connectingStartTime >= 15005) {
-                Serial.println(F("Connection timeout after 15 seconds"));
+            } else if (millis() - connectingStartTime >= 30005) {
+                Serial.println(F("Connection timeout after 30 seconds"));
                 
                 int st = WiFi.status();
                 Serial.println(F("========== CONNECTION FAILED =========="));

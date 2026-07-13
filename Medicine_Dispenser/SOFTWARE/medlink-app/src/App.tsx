@@ -1,15 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { DeviceConfig } from './types';
 import SetupScreen from './views/SetupScreen';
 import SettingsScreen from './views/SettingsScreen';
-import SetupSettingsScreen from './views/SetupSettingsScreen';
 import DashboardView from './views/DashboardScreen';
 import MedicinesView from './views/MedicinesScreen';
 import DiagnosticsView from './views/DiagnosticsScreen';
 import LogsView from './views/LogsScreen';
+import DeviceSearchScreen from './views/DeviceSearchScreen';
 
 import AddEditMedicineView from './views/AddEditMedicineScreen';
-import { getSavedIp, ApiClient } from './services/apiClient';
+import { getSavedIp, ApiClient, appendLog } from './services/apiClient';
 import { DeviceDiscovery } from './services/DeviceDiscovery';
 import { Preferences } from '@capacitor/preferences';
 import { applyTheme, registerThemeListener } from './utils/theme';
@@ -18,10 +18,15 @@ import { Network } from '@capacitor/network';
 
 
 export default function App() {
-  const [screen, setScreen] = useState<string>('setup');
+  const [screen, setScreen] = useState<string>('search');
   const [activeTab, setActiveTab] = useState<string>('dashboard');
   const [selectedMedId, setSelectedMedId] = useState<string | null>(null);
   const [config, setConfig] = useState<DeviceConfig>({ connected: false });
+
+  const screenRef = useRef(screen);
+  useEffect(() => {
+    screenRef.current = screen;
+  }, [screen]);
 
   // System status clocks
   const [_currentClockTime, setCurrentClockTime] = useState<number>(Date.now());
@@ -33,6 +38,8 @@ export default function App() {
     const timer = setInterval(() => setCurrentClockTime(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+
 
   // Load local theme preferences on startup
   useEffect(() => {
@@ -63,6 +70,7 @@ export default function App() {
   // Runs on every screen transition.  Uses discoverFull() (saved IP → mDNS →
   // subnet) so a DHCP address change is repaired transparently.
   const loadDeviceData = async () => {
+    if (screen === 'search') return;
     try {
       const savedIp = await getSavedIp();
       if (!savedIp) {
@@ -75,6 +83,8 @@ export default function App() {
         // Fast path: saved IP still works
         statusRes = await ApiClient.getStatus();
         console.log('[App] Loaded device data from saved IP');
+        // Sync ESP & Mega clock with phone system clock
+        ApiClient.syncTime().catch(err => console.warn('[App] Startup time sync failed:', err));
       } catch {
         console.warn('[App] Saved IP unreachable, running discoverFull() recovery...');
         try {
@@ -119,6 +129,10 @@ export default function App() {
   // connected by running discoverFull() which heals a stale saved IP.
   useEffect(() => {
     const handleNetworkChange = async () => {
+      if (screenRef.current === 'search') {
+        console.log('[App] Network status changed — ignoring in search screen');
+        return;
+      }
       console.log('[App] Network status changed — checking device reachability');
       try {
         const savedIp = await getSavedIp();
@@ -170,6 +184,8 @@ export default function App() {
         }
       } else if (screen === 'setup') {
         CapApp.exitApp();
+      } else if (screen === 'search') {
+        CapApp.exitApp();
       } else if (screen === 'settings-home') {
         setScreen('home');
       } else if (screen === 'settings-setup') {
@@ -195,10 +211,10 @@ export default function App() {
   // Custom screen Router
   const renderScreen = () => {
     switch (screen) {
+      case 'search':
+        return <DeviceSearchScreen onNavigate={setScreen} />;
       case 'setup':
         return <SetupScreen onNavigate={setScreen} />;
-      case 'settings-setup':
-        return <SetupSettingsScreen onNavigate={setScreen} />;
       case 'settings-home':
         return <SettingsScreen onNavigate={setScreen} />;
       case 'add-edit':
@@ -221,7 +237,7 @@ export default function App() {
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-1.5 font-sans">
                   <span className="material-symbols-outlined text-teal-700 dark:text-teal-400 fill-icon text-lg">medication</span>
-                  <span>MedLink Gateway</span>
+                  <span className="text-2xl font-extrabold tracking-tight text-slate-800 dark:text-white font-sans">MedLink</span>
                 </h1>
               </div>
               <div className="flex items-center gap-3">

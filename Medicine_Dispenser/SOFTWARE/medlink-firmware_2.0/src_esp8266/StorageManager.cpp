@@ -67,7 +67,7 @@ void StorageManager::buildDefaultMedicines(JsonDocument& doc) {
 
 void StorageManager::ensureWifi() {
     JsonDocument existing = readJson(SM_FILE_WIFI);
-    if (!existing.isNull() && existing.containsKey("ssid")) return;
+    if (!existing.isNull() && !existing["ssid"].isNull()) return;
 
     JsonDocument doc;
     doc["ssid"]     = "";
@@ -96,7 +96,7 @@ void StorageManager::ensureLogs() {
 
 void StorageManager::ensureSettings() {
     JsonDocument existing = readJson(SM_FILE_SETTINGS);
-    if (!existing.isNull() && existing.containsKey("notifications")) return;
+    if (!existing.isNull() && !existing["notifications"].isNull()) return;
 
     JsonDocument doc;
     JsonObject notif = doc["notifications"].to<JsonObject>();
@@ -114,7 +114,7 @@ void StorageManager::ensureSettings() {
 
 void StorageManager::ensureConfig() {
     JsonDocument existing = readJson(SM_FILE_CONFIG);
-    if (!existing.isNull() && existing.containsKey("deviceId")) return;
+    if (!existing.isNull() && !existing["deviceId"].isNull()) return;
 
     char devId[20];
     snprintf(devId, sizeof(devId), "medlink-%06X", ESP.getChipId());
@@ -223,22 +223,32 @@ void StorageManager::appendLog(const String& type, const String& detail) {
     JsonDocument doc = getLogs();
     JsonArray arr = doc.as<JsonArray>();
 
+    // If size reaches 200, clear logs
+    if (arr.size() >= 200) {
+        arr.clear();
+        JsonObject systemEntry = arr.add<JsonObject>();
+        systemEntry["ts"]     = TimeSource::getEpoch();
+        systemEntry["type"]   = "connection";
+        systemEntry["detail"] = "Logs auto-cleared (reached limit of 200 entries)";
+    }
+
     JsonObject entry = arr.add<JsonObject>();
     entry["ts"]     = TimeSource::getEpoch();
     entry["type"]   = type;
     entry["detail"] = detail;
 
-    // Enforce 200 entries cap, dropping oldest
-    while (arr.size() > 200) {
-        arr.remove(0);
-    }
+    writeJson(SM_FILE_LOGS, doc);
+}
 
+void StorageManager::clearLogs() {
+    JsonDocument doc;
+    doc.to<JsonArray>();
     writeJson(SM_FILE_LOGS, doc);
 }
 
 JsonDocument StorageManager::getSettings() {
     JsonDocument doc = readJson(SM_FILE_SETTINGS);
-    if (doc.isNull() || !doc.containsKey("notifications")) {
+    if (doc.isNull() || doc["notifications"].isNull()) {
         ensureSettings();
         doc = readJson(SM_FILE_SETTINGS);
     }
@@ -251,7 +261,7 @@ void StorageManager::setSettings(JsonDocument& doc) {
 
 JsonDocument StorageManager::getConfig() {
     JsonDocument doc = readJson(SM_FILE_CONFIG);
-    if (doc.isNull() || !doc.containsKey("deviceId")) {
+    if (doc.isNull() || doc["deviceId"].isNull()) {
         ensureConfig();
         doc = readJson(SM_FILE_CONFIG);
     }

@@ -1,6 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { getSavedIp, saveIp, ApiClient } from '../services/apiClient';
-import { DeviceDiscovery } from '../services/DeviceDiscovery';
+import { getSavedIp, saveIp, clearIp, ApiClient } from '../services/apiClient';
+import { DiscoveryManager, DiscoveredDevice, ProgressEvent } from '../services/DiscoveryManager';
+import { CapacitorWifi } from '@capgo/capacitor-wifi';
+import { Capacitor } from '@capacitor/core';
+import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 
 interface SetupScreenProps {
   onNavigate: (screen: string) => void;
@@ -14,16 +17,30 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
   // 4: Searching/Device Detection (foreground)
   // 5: Device Found
   // 6: Connection Error (Actionable)
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
+  // 7: Wi-Fi Credentials Form
+  // 8: Wi-Fi Connection Progress
+  // 9: Wi-Fi Connection Failure
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9>(1);
   const [detectionProgress, setDetectionProgress] = useState<0 | 1 | 2 | 3 | 4>(0);
   const [deviceInfo, setDeviceInfo] = useState({ name: 'MedLink Dispenser', firmware: 'Unknown', deviceId: 'Unknown' });
   const [errorDetails, setErrorDetails] = useState<string>('');
 
   // Background discovery state (shown subtly during steps 1–3)
   const [bgStatus, setBgStatus] = useState<'idle' | 'searching' | 'found'>('idle');
-  const bgActive = useRef(true); // set to false to cancel the loop
+  const bgActive = useRef(true);
 
-  // ─── Silent background discovery (runs while user reads onboarding) ────────
+  // Wi-Fi provisioning state
+  const [wifiSsid, setWifiSsid] = useState('');
+  const [wifiPassword, setWifiPassword] = useState('');
+  const [wifiState, setWifiState] = useState<'idle' | 'submitting' | 'waiting_creds' | 'reconnecting' | 'searching' | 'success' | 'failed'>('idle');
+  const [progressMsg, setProgressMsg] = useState('');
+  const [discoveryError, setDiscoveryError] = useState('');
+  const [pollCount, setPollCount] = useState(0);
+
+  // ─── Silent background discovery ──────────────────────────────────────────
+  // Pauses during active provisioning; resumes automatically once provisioning
+  // ends (success or failure). Uses DiscoveryManager sessions so concurrent
+  // runs are impossible.
   useEffect(() => {
     bgActive.current = true;
     setBgStatus('searching');
@@ -32,34 +49,58 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
       console.log('[SetupScreen] Background discovery started');
 
       while (bgActive.current) {
-        try {
-          const device = await DeviceDiscovery.discoverFull();
-          if (!bgActive.current) return; // cancelled while awaiting
-
-          console.log('[SetupScreen] Background discovery found device:', device.ip);
-          await saveIp(device.ip);
-          setBgStatus('found');
-
-          // Brief moment so user sees "Device found" before navigating
-          await new Promise(r => setTimeout(r, 1200));
-
-          if (!bgActive.current) return;
-          onNavigate('home');
-          return;
-        } catch {
-          // Device not reachable yet — wait 15s then retry
-          console.log('[SetupScreen] Background discovery attempt failed, retrying in 15s');
+        // Yield while provisioning is running
+        if (DiscoveryManager.isBackgroundPaused) {
+          await new Promise<void>(r => setTimeout(r, 2000));
+          continue;
         }
 
-        // Wait 15 seconds or until cancelled
+        const bgSession = DiscoveryManager.startSession();
+
+        try {
+          const device = await DiscoveryManager.discoverFull(
+            bgSession,
+            msg => console.log('[BgDiscovery]', msg)
+          );
+
+          if (!bgActive.current || bgSession.cancelled) return;
+
+          // Guard: ignore discovery if device was found via AP (192.168.4.1 or
+          // medlink.local while phone is still on the MedLink AP network).
+          // The user needs to complete the setup wizard before we navigate away.
+          const isApAddress = device.ip === '192.168.4.1' || device.ip === 'medlink.local';
+          let phoneOnMedLinkAp = false;
+          try {
+            const { ssid } = await CapacitorWifi.getSsid();
+            phoneOnMedLinkAp = !!ssid && ssid.toLowerCase().startsWith('medlink-');
+          } catch { /* can't check — err on side of caution */ }
+
+          if (isApAddress || phoneOnMedLinkAp) {
+            console.log(`[SetupScreen] Background found device at ${device.ip} but phone is ${phoneOnMedLinkAp ? 'on MedLink AP' : 'seeing AP IP'} — ignoring, retry in 8 s`);
+            await new Promise<void>((resolve) => {
+              const timer = setTimeout(resolve, 8000);
+              bgSession.signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+            });
+            continue;
+          }
+
+          console.log('[SetupScreen] Background found device on LAN:', device.ip);
+          setBgStatus('found');
+
+          await new Promise<void>(resolve => setTimeout(resolve, 1200));
+          if (!bgActive.current) return;
+          onNavigate('search');
+          return;
+
+        } catch {
+          if (!bgActive.current) return;
+          console.log('[SetupScreen] Background discovery attempt failed, retrying in 15 s');
+        }
+
+        // Wait 15 s (cancellable)
         await new Promise<void>(resolve => {
-          const id = setTimeout(resolve, 15000);
-          // Poll cancellation every 500 ms to exit early on unmount
-          const check = setInterval(() => {
-            if (!bgActive.current) { clearTimeout(id); clearInterval(check); resolve(); }
-          }, 500);
-          // Clean up interval when timeout fires
-          setTimeout(() => clearInterval(check), 15100);
+          const timer = setTimeout(resolve, 15_000);
+          bgSession.signal.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
         });
       }
     };
@@ -68,15 +109,26 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
 
     return () => {
       bgActive.current = false;
-      console.log('[SetupScreen] Background discovery cancelled (unmount or step advance)');
+      DiscoveryManager.cancelCurrent();
+      DiscoveryManager.resumeBackground();
+      console.log('[SetupScreen] Cleaned up (unmount)');
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Check if we came from a failed Wi-Fi setup on the search screen
+  useEffect(() => {
+    if (DiscoveryManager.wifiSetupFailed) {
+      setStep(9);
+      setWifiState('failed');
+      setDiscoveryError('Incorrect Wi-Fi credentials or device could not connect to router. Please check your SSID/Password and try again.');
+      // Reset the flag immediately
+      DiscoveryManager.setWifiSetupFailed(false);
+    }
+  }, []);
+
   // ─── Foreground detection (step 4 — user pressed "I'm Connected") ─────────
   const runDetection = async () => {
-    // Stop background loop so they don't race
-    bgActive.current = false;
     setDetectionProgress(0);
 
     await new Promise(r => setTimeout(r, 800));
@@ -123,59 +175,133 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  const handleOpenWifiSettings = () => {
-    alert("Please open your phone's Wi-Fi Settings panel manually and connect to the 'MedLink-XXXX' network, then return to this app.");
+  // ─── Native Wifi Settings Intent ──────────────────────────────────────────
+  const handleOpenWifiSettings = async () => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        await NativeSettings.openAndroid({
+          option: AndroidSettings.Wifi,
+        });
+      } catch (err) {
+        console.error('Failed to open Wi-Fi settings via NativeSettings:', err);
+        alert("Please open your phone's Wi-Fi Settings panel manually and connect to the 'MedLink-XXXX' network, then return to this app.");
+      }
+    } else {
+      alert("Please open your phone's Wi-Fi Settings panel manually and connect to the 'MedLink-XXXX' network, then return to this app.");
+    }
     setStep(3);
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
-
-  /** Subtle background-discovery status bar shown during steps 1–3. */
-  const BgStatusBar = () => {
-    if (step > 3) return null;
-    if (bgStatus === 'idle') return null;
-    return (
-      <div className={`w-full flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-[10px] font-semibold transition-all
-        ${bgStatus === 'found'
-          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-          : 'bg-teal-500/8 text-teal-600 dark:text-teal-400 border border-teal-500/10'}`}>
-        {bgStatus === 'found' ? (
-          <>
-            <span className="material-symbols-outlined text-xs">check_circle</span>
-            <span>Device found — Connecting...</span>
-          </>
-        ) : (
-          <>
-            <span className="material-symbols-outlined text-xs animate-spin">sync</span>
-            <span>Searching for nearby MedLink...</span>
-          </>
-        )}
-      </div>
-    );
+  // ─── Wi-Fi Auto-SSID Scan ──────────────────────────────────────────────────
+  const handleLoadScannedSsid = async () => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        await CapacitorWifi.requestPermissions();
+      }
+      const info = await CapacitorWifi.getSsid();
+      if (info?.ssid) setWifiSsid(info.ssid);
+    } catch (err) {
+      console.warn('[SetupScreen] Could not scan SSID:', err);
+    }
   };
 
-  return (
-    <div className="min-h-full flex flex-col justify-between items-center p-6 bg-slate-50 dark:bg-slate-950 font-sans select-none animate-fade-in pb-12">
+  // ─── Progress callback → UI state mapping ─────────────────────────────────
+  const handleProgress = (event: ProgressEvent) => {
+    setProgressMsg(event.message);
 
-      {/* Top Branding Section */}
-      <header className="flex flex-col items-center pt-8 text-center shrink-0">
-        <div className="w-14 h-14 rounded-2xl bg-teal-600 dark:bg-teal-500 flex items-center justify-center shadow-md shadow-teal-600/10 dark:shadow-none mb-3">
-          <span className="material-symbols-outlined text-3xl text-white fill-icon">medication</span>
-        </div>
-        <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">
-          Welcome to MedLink
-        </h1>
-        <p className="text-xs text-slate-450 dark:text-slate-555 mt-1 max-w-[260px] leading-relaxed">
-          Let's set up your smart medicine dispenser in just a few simple steps.
-        </p>
+    switch (event.stage) {
+      case 'INIT':
+      case 'SAVING':
+        setWifiState('waiting_creds');
+        break;
+      case 'PHONE_WAIT':
+        setWifiState('reconnecting');
+        break;
+      case 'SAVED_IP':
+      case 'AP_IP':
+      case 'MDNS':
+      case 'SUBNET':
+      case 'STATUS_POLL':
+      case 'VERIFY':
+        setWifiState('searching');
+        setPollCount(prev => prev + 1);
+        break;
+      case 'SUCCESS':
+        setWifiState('success');
+        break;
+      case 'FAILED':
+        setWifiState('failed');
+        break;
+    }
+  };
+
+  // ─── Wi-Fi Credentials Submission ─────────────────────────────────────────
+  const handleWifiSubmit = async () => {
+    if (!wifiSsid.trim()) return;
+
+    setStep(8);
+    setWifiState('submitting');
+    setProgressMsg('Sending Wi-Fi credentials...');
+    setDiscoveryError('');
+    setPollCount(0);
+
+    try {
+      await ApiClient.connectWifi(wifiSsid.trim(), wifiPassword);
+    } catch (err) {
+      // Ignore network errors/timeouts because ESP closes AP connection immediately
+      console.warn('[SetupScreen] connectWifi request completed or dropped:', err);
+    }
+
+    console.log('[SetupScreen] Wi-Fi credentials sent. Clearing stale AP IP and routing to DeviceSearchScreen...');
+
+    // Clear stale 192.168.4.1 so discovery doesn't waste time on it
+    await clearIp();
+
+    // Pause background discovery so it doesn't run during search
+    DiscoveryManager.pauseBackground();
+
+    // Navigate to the DeviceSearchScreen immediately.
+    // The Search page will automatically start discovery and handle the phone reconnecting to Wi-Fi.
+    onNavigate('search');
+  };
+
+  // ─── Retry provisioning ────────────────────────────────────────────────────
+  const handleRetryProvisioning = () => {
+    clearIp().then(() => {
+      DiscoveryManager.pauseBackground();
+      onNavigate('search');
+    });
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
+  
+  return (
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950 font-sans select-none animate-fade-in relative">
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm shrink-0">
+        <div className="flex items-center gap-3 px-5 py-4">
+          <button
+            type="button"
+            onClick={() => {
+              onNavigate('search');
+            }}
+            className="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-slate-650 dark:text-slate-350 active:scale-95 transition-all cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700"
+            aria-label="Back"
+          >
+            <span className="material-symbols-outlined text-lg">arrow_back</span>
+          </button>
+          <div className="flex-1">
+            <h1 className="text-base font-bold text-slate-800 dark:text-white">Device Setup</h1>
+          </div>
+        </div>  
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 w-full max-w-xs flex flex-col items-center justify-center my-6 gap-3">
+      <main className="flex-1 w-full overflow-y-auto flex flex-col p-6 gap-4 pb-48">
 
         {/* Step 1 – Power On Device */}
         {step === 1 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <div className="w-full flex flex-col space-y-4">
             <h2 className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">Step 1 – Power On Device</h2>
             <div className="space-y-3.5 text-xs text-slate-650 dark:text-slate-350 leading-relaxed">
               <p className="flex items-start gap-2">
@@ -191,31 +317,23 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
                 <span>The device will create a temporary Wi-Fi network.</span>
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span>Next Step</span>
-              <span className="material-symbols-outlined text-sm">arrow_forward</span>
-            </button>
           </div>
         )}
 
         {/* Step 2 – Connect to MedLink Wi-Fi */}
         {step === 2 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <div className="w-full flex flex-col space-y-4">
             <h2 className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">Step 2 – Connect to MedLink Wi-Fi</h2>
-            <div className="space-y-3 text-xs text-slate-650 dark:text-slate-350 leading-relaxed">
-              <p>1. Open your phone's Wi-Fi settings.</p>
+            <div className="space-y-3 text-xs text-slate-655 dark:text-slate-350 leading-relaxed">
+              <p>1. Tap "Open Wi-Fi Settings" below.</p>
               <p>2. Connect to the Wi-Fi network named:</p>
-              <div className="bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-850 font-mono text-center text-sm font-bold text-slate-800 dark:text-white">
+              <div className="bg-slate-100 dark:bg-slate-900 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 font-mono text-center text-sm font-bold text-slate-800 dark:text-white">
                 MedLink-XXXX
               </div>
               <p className="text-[10px] text-slate-450 dark:text-slate-500">
                 * Internet may be temporarily unavailable while connected to this network.
               </p>
-              <div className="bg-amber-500/5 border border-amber-500/20 dark:border-amber-500/10 p-3 rounded-xl text-[10px] text-amber-600 dark:text-amber-450 space-y-1">
+              <div className="bg-amber-500/5 border border-amber-500/20 dark:border-amber-500/10 p-3 rounded-xl text-[10px] text-amber-600 dark:text-amber-455 space-y-1">
                 <p className="font-bold flex items-center gap-1">
                   <span className="material-symbols-outlined text-xs">info</span>
                   <span>Captive Portal Note:</span>
@@ -223,20 +341,12 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
                 <p>If a browser page automatically opens asking for Wi-Fi credentials, simply close it and return to the MedLink app. The app will guide you through setup.</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleOpenWifiSettings}
-              className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span className="material-symbols-outlined text-sm">settings_ethernet</span>
-              <span>Open Wi-Fi Settings</span>
-            </button>
           </div>
         )}
 
         {/* Step 3 – Return to App */}
         {step === 3 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <div className="w-full flex flex-col space-y-4">
             <h2 className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">Step 3 – Return to the App</h2>
             <div className="space-y-4 text-center py-2">
               <span className="material-symbols-outlined text-5xl text-teal-655 dark:text-teal-400 animate-pulse">phonelink_setup</span>
@@ -244,31 +354,12 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
                 Once connected to the <strong>MedLink-XXXX</strong> network, return to this app to initialize the setup.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                className="h-11 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-350 font-bold text-xs rounded-xl active:scale-[0.98]"
-              >
-                Back
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                className="h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer"
-              >
-                I'm Connected
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Subtle background-discovery status bar (steps 1–3) */}
-        <BgStatusBar />
-
         {/* Step 4 – Device Detection (Searching...) */}
         {step === 4 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-sm space-y-5">
+          <div className="w-full flex flex-col space-y-5">
             <h2 className="text-[10px] text-teal-600 dark:text-teal-400 font-bold uppercase tracking-wider">Step 4 – Device Detection</h2>
 
             <div className="flex items-center justify-center py-2">
@@ -291,7 +382,7 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
                   </span>
                 </div>
               ))}
-              <div className="pl-6 text-[10px] font-mono text-teal-650 dark:text-teal-400">
+              <div className="pl-6 text-[10px] font-mono text-teal-655 dark:text-teal-400">
                 {detectionProgress === 4 && <span className="animate-pulse">Preparing setup...</span>}
               </div>
             </div>
@@ -300,7 +391,7 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
 
         {/* Step 5 – Device Found */}
         {step === 5 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-855 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <div className="w-full flex flex-col space-y-4">
             <h2 className="text-[10px] text-teal-655 dark:text-teal-400 font-bold uppercase tracking-wider">Device Found!</h2>
             <div className="flex items-center gap-2 pb-2">
               <span className="material-symbols-outlined text-3xl text-emerald-500">check_circle</span>
@@ -309,35 +400,26 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
               </p>
             </div>
 
-            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-850 space-y-3 text-left">
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-3 text-left shadow-sm">
               <div>
                 <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold">Device Name</p>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">{deviceInfo.name}</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-350 mt-0.5">{deviceInfo.name}</p>
               </div>
               <div>
                 <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold">Firmware Version</p>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mt-0.5">v{deviceInfo.firmware}</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-350 mt-0.5">v{deviceInfo.firmware}</p>
               </div>
               <div>
                 <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold">Device ID</p>
-                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 mt-0.5 truncate">{deviceInfo.deviceId}</p>
+                <p className="text-xs font-mono font-bold text-slate-700 dark:text-slate-350 mt-0.5 truncate">{deviceInfo.deviceId}</p>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={() => onNavigate('settings-setup')}
-              className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-650 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
-            >
-              <span>Continue to Wi-Fi Setup</span>
-              <span className="material-symbols-outlined text-sm">wifi</span>
-            </button>
           </div>
         )}
 
         {/* Step 6 – Actionable Error Screen */}
         {step === 6 && (
-          <div className="w-full p-6 flex flex-col rounded-3xl border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+          <div className="w-full flex flex-col space-y-4">
             <h2 className="text-[10px] text-rose-500 font-bold uppercase tracking-wider">Connection Failed</h2>
             <div className="flex items-center gap-2 pb-1">
               <span className="material-symbols-outlined text-3xl text-rose-500">error</span>
@@ -360,50 +442,217 @@ export default function SetupScreen({ onNavigate }: SetupScreenProps) {
                 <li>You're close to the dispenser.</li>
               </ul>
             </div>
+          </div>
+        )}
 
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => setStep(4)}
-                className="w-full h-10 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer"
-              >
-                Retry
-              </button>
+        {/* Step 7 – Wi-Fi Credentials Form */}
+        {step === 7 && (
+          <div className="w-full flex flex-col space-y-4 animate-fade-in">
+            <h2 className="text-[10px] text-teal-655 dark:text-teal-400 font-bold uppercase tracking-wider">Step 5 of 5 — Wi-Fi Configuration</h2>
+            <div className="flex items-center gap-2 pb-2">
+              <span className="material-symbols-outlined text-3xl text-teal-500">wifi</span>
+              <p className="text-xs text-slate-655 dark:text-slate-350 leading-relaxed font-bold">
+                Configure your MedLink dispenser to connect to your home Wi-Fi network.
+              </p>
+            </div>
 
-              <button
-                type="button"
-                onClick={handleOpenWifiSettings}
-                className="w-full h-10 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl active:scale-[0.98]"
-              >
-                Open Wi-Fi Settings
-              </button>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase" htmlFor="wifi-ssid">Network SSID</label>
+                <input
+                  id="wifi-ssid"
+                  type="text"
+                  required
+                  value={wifiSsid}
+                  onChange={e => setWifiSsid(e.target.value)}
+                  placeholder="Home Wi-Fi Network Name"
+                  className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs outline-none focus:border-teal-500 dark:focus:border-teal-400 text-slate-800 dark:text-white"
+                />
+              </div>
 
-              <button
-                type="button"
-                onClick={() => setStep(3)}
-                className="w-full h-9 text-slate-450 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400 font-bold text-xs rounded-xl"
-              >
-                Back
-              </button>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase" htmlFor="wifi-pass">Password</label>
+                <input
+                  id="wifi-pass"
+                  type="password"
+                  value={wifiPassword}
+                  onChange={e => setWifiPassword(e.target.value)}
+                  placeholder="Network Password"
+                  className="w-full h-11 px-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs outline-none focus:border-teal-500 dark:focus:border-teal-400 text-slate-800 dark:text-white"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Step 8 – Connecting Progress */}
+        {step === 8 && (
+          <div className="w-full flex flex-col space-y-5 py-4 items-center text-center animate-fade-in">
+            <span className="material-symbols-outlined text-5xl text-teal-600 dark:text-teal-400 animate-spin">sync</span>
+            <div className="space-y-2">
+              <h2 className="text-sm font-bold text-slate-800 dark:text-white">{progressMsg}</h2>
+              <p className="text-[11px] text-slate-450 dark:text-slate-550 leading-relaxed max-w-[240px] mx-auto">
+                {wifiState === 'submitting' && 'Transmitting network credentials to MedLink.'}
+                {wifiState === 'waiting_creds' && 'MedLink is leaving AP mode and connecting to the router.'}
+                {wifiState === 'reconnecting' && 'Waiting for your phone to return to your home network.'}
+                {wifiState === 'searching' && `Locating device on your network. Attempt ${pollCount}...`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 9 – Wi-Fi Connection Failed */}
+        {step === 9 && (
+          <div className="w-full flex flex-col space-y-4 animate-fade-in">
+            <h2 className="text-[10px] text-rose-500 font-bold uppercase tracking-wider">Wi-Fi Connection Failed</h2>
+            <div className="flex items-center gap-2 pb-1">
+              <span className="material-symbols-outlined text-3xl text-rose-500">error</span>
+              <p className="text-xs text-slate-800 dark:text-white font-bold">
+                MedLink could not connect to your Wi-Fi network.
+              </p>
+            </div>
+
+            {discoveryError && (
+              <p className="text-[9px] text-rose-600 dark:text-rose-400 font-mono bg-rose-500/5 border border-rose-500/15 rounded-lg p-2.5 break-words leading-relaxed text-left">
+                {discoveryError}
+              </p>
+            )}
+
+            <div className="space-y-3.5 text-xs text-slate-655 dark:text-slate-350 leading-relaxed border-t border-b border-slate-100 dark:border-slate-850 py-3.5">
+              <p className="font-bold text-slate-700 dark:text-slate-300">Please verify:</p>
+              <ul className="list-disc pl-4 space-y-1.5">
+                <li>You entered the correct Wi-Fi SSID and Password.</li>
+                <li>Your home router is powered on and within range of MedLink.</li>
+                <li>Your phone and MedLink are trying to connect to the same 2.4GHz network.</li>
+              </ul>
             </div>
           </div>
         )}
 
       </main>
 
-      {/* Footer */}
-      <footer className="w-full shrink-0 flex flex-col items-center">
-        {step <= 3 && (
-          <div className="flex gap-1.5 mb-5">
-            <span className={`w-1.5 h-1.5 rounded-full ${step === 1 ? 'bg-teal-600 dark:bg-teal-400' : 'bg-slate-300 dark:bg-slate-800'}`}></span>
-            <span className={`w-1.5 h-1.5 rounded-full ${step === 2 ? 'bg-teal-600 dark:bg-teal-400' : 'bg-slate-300 dark:bg-slate-800'}`}></span>
-            <span className={`w-1.5 h-1.5 rounded-full ${step === 3 ? 'bg-teal-600 dark:bg-teal-400' : 'bg-slate-300 dark:bg-slate-800'}`}></span>
+      {/* Footer / Fixed Action Area */}
+      <footer className="absolute bottom-0 left-0 right-0 p-6 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-4px_15px_-3px_rgba(0,0,0,0.05)] z-50 flex flex-col gap-3">
+        {step === 1 && (
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span>Next Step</span>
+            <span className="material-symbols-outlined text-sm">arrow_forward</span>
+          </button>
+        )}
+
+        {step === 2 && (
+          <button
+            type="button"
+            onClick={handleOpenWifiSettings}
+            className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span className="material-symbols-outlined text-sm">settings_ethernet</span>
+            <span>Open Wi-Fi Settings</span>
+          </button>
+        )}
+
+        {step === 3 && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className="h-11 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-650 dark:text-slate-350 font-bold text-xs rounded-xl active:scale-[0.98]"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(4)}
+              className="h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer"
+            >
+              I'm Connected
+            </button>
           </div>
         )}
-        <div className="text-[10px] text-slate-400 dark:text-slate-550 text-center max-w-[260px] leading-relaxed">
-          <p>This setup only needs to be completed once.</p>
-          <p className="mt-0.5">After setup, MedLink will automatically reconnect whenever it is powered on.</p>
-        </div>
+
+        {step === 5 && (
+          <button
+            type="button"
+            onClick={() => {
+              setStep(7);
+              handleLoadScannedSsid();
+            }}
+            className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-655 text-white font-bold text-xs rounded-xl active:scale-[0.98] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <span>Continue to Wi-Fi Setup</span>
+            <span className="material-symbols-outlined text-sm">wifi</span>
+          </button>
+        )}
+
+        {step === 6 && (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => setStep(4)}
+              className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer"
+            >
+              Retry
+            </button>
+
+            <button
+              type="button"
+              onClick={handleOpenWifiSettings}
+              className="w-full h-11 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl active:scale-[0.98]"
+            >
+              Open Wi-Fi Settings
+            </button>
+          </div>
+        )}
+
+        {step === 7 && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setStep(5)}
+              className="h-11 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-655 dark:text-slate-350 font-bold text-xs rounded-xl active:scale-[0.98]"
+            >
+              Back
+            </button>
+            <button
+              type="button"
+              onClick={handleWifiSubmit}
+              disabled={!wifiSsid.trim()}
+              className="h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Connect
+            </button>
+          </div>
+        )}
+
+        {step === 9 && (
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleRetryProvisioning}
+              className="w-full h-11 bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white font-bold text-xs rounded-xl active:scale-[0.98] cursor-pointer"
+            >
+              Retry Connection
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(7)}
+              className="w-full h-11 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl active:scale-[0.98]"
+            >
+              Change Wi-Fi Settings
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full h-11 text-slate-450 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-400 font-bold text-xs rounded-xl"
+            >
+              Restart Setup
+            </button>
+          </div>
+        )}
       </footer>
     </div>
   );
