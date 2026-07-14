@@ -18,8 +18,47 @@ JsonDocument StorageManager::readJson(const char* path) {
         Serial.print(F(": "));
         Serial.println(err.c_str());
         doc.clear();
+
+        // Self-healing: if the logs file is corrupted/too large, clear it to recover memory
+        if (strcmp(path, SM_FILE_LOGS) == 0) {
+            Serial.println(F("[SM] Clearing corrupted/too-large log file to recover memory..."));
+            File recoveryFile = LittleFS.open(path, "w");
+            if (recoveryFile) {
+                recoveryFile.print("[]");
+                recoveryFile.close();
+            }
+        }
     }
     return doc;
+}
+
+bool StorageManager::readJson(const char* path, JsonVariant target) {
+    if (!LittleFS.exists(path)) return false;
+
+    File f = LittleFS.open(path, "r");
+    if (!f) return false;
+
+    DeserializationError err = deserializeJson(target, f);
+    f.close();
+
+    if (err) {
+        Serial.print(F("[SM] JSON parse error in "));
+        Serial.print(path);
+        Serial.print(F(": "));
+        Serial.println(err.c_str());
+
+        // Self-healing: if the logs file is corrupted/too large, clear it to recover memory
+        if (strcmp(path, SM_FILE_LOGS) == 0) {
+            Serial.println(F("[SM] Clearing corrupted/too-large log file to recover memory..."));
+            File recoveryFile = LittleFS.open(path, "w");
+            if (recoveryFile) {
+                recoveryFile.print("[]");
+                recoveryFile.close();
+            }
+        }
+        return false;
+    }
+    return true;
 }
 
 bool StorageManager::writeJson(const char* path, JsonDocument& doc) {
@@ -219,17 +258,24 @@ JsonDocument StorageManager::getLogs() {
     return doc;
 }
 
+bool StorageManager::getLogs(JsonVariant target) {
+    if (!readJson(SM_FILE_LOGS, target)) {
+        target.to<JsonArray>();
+        return false;
+    }
+    if (!target.is<JsonArray>()) {
+        target.to<JsonArray>();
+    }
+    return true;
+}
+
 void StorageManager::appendLog(const String& type, const String& detail) {
     JsonDocument doc = getLogs();
     JsonArray arr = doc.as<JsonArray>();
 
-    // If size reaches 200, clear logs
-    if (arr.size() >= 200) {
-        arr.clear();
-        JsonObject systemEntry = arr.add<JsonObject>();
-        systemEntry["ts"]     = TimeSource::getEpoch();
-        systemEntry["type"]   = "connection";
-        systemEntry["detail"] = "Logs auto-cleared (reached limit of 200 entries)";
+    // Capping logs to 50 max and implementing FIFO behavior to prevent memory exhaustion
+    while (arr.size() >= 50) {
+        arr.remove(0);
     }
 
     JsonObject entry = arr.add<JsonObject>();

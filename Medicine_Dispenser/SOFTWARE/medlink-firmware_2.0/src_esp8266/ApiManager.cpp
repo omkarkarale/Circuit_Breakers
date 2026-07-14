@@ -7,6 +7,7 @@
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
 #include <sys/time.h>
+#include <time.h>
 
 ESP8266WebServer ApiManager::_server(80);
 DNSServer        ApiManager::_dns;
@@ -156,6 +157,7 @@ void ApiManager::begin() {
                 }
                 StorageManager::setMedicines(med);
                 Scheduler::checkLowMedicine(slot);
+                _sendMedicineInfo(slot, true);
             }
         }
     });
@@ -431,6 +433,7 @@ void ApiManager::_handlePutMedicine() {
 
     StorageManager::setMedicines(med);
     Scheduler::resetLowWarned(slot);
+    _sendMedicineInfo(slot, true);
 
 
 
@@ -452,7 +455,6 @@ void ApiManager::_handleDeleteMedicine() {
     for (JsonObject s : arr) {
         if (s["slot"].as<int>() == slot) {
             s["assigned"] = false;
-            s["name"] = "";
             s["type"] = "";
             s["remainingPills"] = 0;
             s["dosePerReminder"] = 1;
@@ -466,6 +468,7 @@ void ApiManager::_handleDeleteMedicine() {
 
     StorageManager::setMedicines(med);
     Scheduler::resetLowWarned(slot);
+    _sendMedicineInfo(slot, false);
 
     StorageManager::appendLog("medicine_removed", "Slot " + String(slot) + " cleared (medicine removed)");
 
@@ -507,6 +510,7 @@ void ApiManager::_handleRefillMedicine() {
 
     StorageManager::setMedicines(med);
     Scheduler::resetLowWarned(slot);
+    _sendMedicineInfo(slot, true);
 
     StorageManager::appendLog("refill", "Slot " + String(slot) + " refilled with " + String(qty) + " pills (total: " + String(total) + ")");
 
@@ -613,6 +617,66 @@ void ApiManager::_handleGetDiagnostics() {
     _sendJson(200, doc);
 }
 
+void ApiManager::_sendMedicineInfo(int slotNum, bool enabled) {
+    JsonDocument med = StorageManager::getMedicines();
+    JsonArray arr = med.as<JsonArray>();
+    for (JsonObject s : arr) {
+        if (s["slot"].as<int>() == slotNum) {
+            String name = s["name"].as<String>();
+            int dose = s["dosePerReminder"].as<int>();
+            JsonArray times = s["times"].as<JsonArray>();
+            
+            String timeStr = "";
+            for (int i = 0; i < 5; i++) {
+                if (times.size() > (size_t)i) {
+                    timeStr += times[i].as<String>();
+                } else {
+                    timeStr += "99:99";
+                }
+                if (i < 4) {
+                    timeStr += ",";
+                }
+            }
+            
+            String freq = s["repeatFrequency"].as<String>();
+            freq.toLowerCase();
+            
+            bool active[7] = {false, false, false, false, false, false, false};
+            if (freq == "daily") {
+                for (int i = 0; i < 7; i++) active[i] = true;
+            } else {
+                if (freq.indexOf("sunday") != -1)    active[0] = true;
+                if (freq.indexOf("monday") != -1)    active[1] = true;
+                if (freq.indexOf("tuesday") != -1)   active[2] = true;
+                if (freq.indexOf("wednesday") != -1) active[3] = true;
+                if (freq.indexOf("thursday") != -1)  active[4] = true;
+                if (freq.indexOf("friday") != -1)    active[5] = true;
+                if (freq.indexOf("saturday") != -1)  active[6] = true;
+            }
+            
+            String dayNoStr = "";
+            int count = 0;
+            for (int d = 0; d < 7; d++) {
+                if (active[d]) {
+                    if (count > 0) dayNoStr += ",";
+                    dayNoStr += String(d);
+                    count++;
+                }
+            }
+            for (int i = count; i < 7; i++) {
+                if (i > 0) dayNoStr += ",";
+                dayNoStr += "X";
+            }
+
+            int enabledFlag = enabled ? 1 : 0;
+            
+            String cmd = "New_med=" + name + "," + String(slotNum) + "," + String(dose) + "," + timeStr + "," + dayNoStr + "," + String(enabledFlag);
+            SerialBridge::sendLine(cmd);
+            break;
+        }
+    }
+}
+
 bool ApiManager::_runDiagTest(const String& component, String& detail) {
     bool pass = false;
     if (component == "wifi") {
@@ -693,51 +757,30 @@ bool ApiManager::_runDiagTest(const String& component, String& detail) {
 void ApiManager::_handleTestComponent() {
     String uri = _server.uri();
     String comp = uri.substring(uri.lastIndexOf('/') + 1);
-    String detail;
-    bool pass = _runDiagTest(comp, detail);
+
+    SerialBridge::sendLine("Debug=" + comp);
 
     JsonDocument doc;
     doc["success"] = true;
-    doc["message"] = "ok";
-    doc["pass"] = pass;
-    doc["detail"] = detail;
+    doc["message"] = "Diagnostic command sent";
     _sendJson(200, doc);
 }
 
 void ApiManager::_handleTestAll() {
-    JsonDocument& caps = SerialBridge::getCachedCapabilities();
-    JsonArray steppers = caps["steppers"].as<JsonArray>();
+    SerialBridge::sendLine("Debug=wifi");
+    SerialBridge::sendLine("Debug=storage");
+    SerialBridge::sendLine("Debug=memory");
+    SerialBridge::sendLine("Debug=rtc");
+    SerialBridge::sendLine("Debug=stepper1");
+    SerialBridge::sendLine("Debug=stepper2");
+    SerialBridge::sendLine("Debug=stepper3");
+    SerialBridge::sendLine("Debug=ir");
+    SerialBridge::sendLine("Debug=speaker");
+    SerialBridge::sendLine("Debug=display");
 
     JsonDocument doc;
     doc["success"] = true;
-    doc["message"] = "ok";
-    JsonObject results = doc["data"].to<JsonObject>();
-
-    auto runOne = [&](const char* key) {
-        String d;
-        bool p = _runDiagTest(key, d);
-        results[key]["pass"] = p;
-        results[key]["detail"] = d;
-        SerialBridge::poll();
-        yield();
-    };
-
-    runOne("wifi");
-    runOne("storage");
-    runOne("memory");
-    runOne("firmware");
-
-    if (caps["rtc"].as<bool>())     runOne("rtc");
-    if (caps["ir"].as<bool>())      runOne("ir");
-    if (caps["speaker"].as<bool>()) runOne("speaker");
-    if (caps["display"].as<bool>()) runOne("display");
-
-    for (int i = 0; i < 3; i++) {
-        if (steppers.size() > (size_t)i && steppers[i].as<bool>()) {
-            runOne(("stepper" + String(i + 1)).c_str());
-        }
-    }
-
+    doc["message"] = "Diagnostic command sent";
     _sendJson(200, doc);
 }
 
@@ -843,11 +886,10 @@ void ApiManager::_handleFactoryReset() {
 }
 
 void ApiManager::_handleGetLogs() {
-    JsonDocument logs = StorageManager::getLogs();
     JsonDocument doc;
     doc["success"] = true;
     doc["message"] = "ok";
-    doc["data"] = logs;
+    StorageManager::getLogs(doc["data"]);
     _sendJson(200, doc);
 }
 
@@ -888,12 +930,33 @@ void ApiManager::_handlePostTime() {
     deserializeJson(d, _server.arg("plain"));
     if (d["time"].is<uint32_t>()) {
         uint32_t epoch = d["time"].as<uint32_t>();
+        // Add 1 second to compensate for Wi-Fi and Serial transmission/processing delays
+        epoch += 1;
         timeval tv = { (time_t)epoch, 0 };
         timezone tz = { 0, 0 };
         settimeofday(&tv, &tz);
         megaTimeSynced = true;
+        
+        // Configure POSIX timezone for IST (UTC+5:30)
+        setenv("TZ", "IST-5:30", 1);
+        tzset();
+
         Serial.print(F("[API] System time set from phone: "));
         Serial.println(epoch);
+        
+        time_t rawtime = (time_t)epoch;
+        struct tm* timeinfo = localtime(&rawtime);
+        
+        char timeStr[128];
+        snprintf(timeStr, sizeof(timeStr), "Time=rtc(%d,%d,%d,%d,%d,%d)",
+                 timeinfo->tm_year + 1900,
+                 timeinfo->tm_mon + 1,
+                 timeinfo->tm_mday,
+                 timeinfo->tm_hour,
+                 timeinfo->tm_min,
+                 timeinfo->tm_sec);
+        
+        SerialBridge::sendLine(timeStr);
         
         // Also sync it to Mega RTC if capabilities rtc is true
         if (SerialBridge::capabilitiesKnown() && SerialBridge::getCachedCapabilities()["rtc"].as<bool>()) {

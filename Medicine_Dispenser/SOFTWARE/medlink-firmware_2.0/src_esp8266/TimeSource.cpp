@@ -7,7 +7,7 @@ static bool hasSyncedOnce = false;
 
 void TimeSource::begin() {
     // Initial configuration of NTP servers with 0 offset
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    configTime(19800, 0, "pool.ntp.org", "time.nist.gov");
 }
 
 void TimeSource::update() {

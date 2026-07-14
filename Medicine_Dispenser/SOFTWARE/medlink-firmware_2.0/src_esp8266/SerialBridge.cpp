@@ -13,7 +13,19 @@ unsigned long SerialBridge::_capsLastAttempt = 0;
 void SerialBridge::begin(SoftwareSerial& serial) {
     _sw = &serial;
     _rxBuf = "";
-    _capsKnown = false;
+    
+    // Mock local capabilities to prevent querying the Mega
+    _capsKnown = true;
+    _caps.clear();
+    _caps["rtc"] = true;
+    _caps["speaker"] = true;
+    _caps["display"] = true;
+    _caps["ir"] = true;
+    JsonArray steppers = _caps["steppers"].to<JsonArray>();
+    steppers.add(true);
+    steppers.add(true);
+    steppers.add(true);
+
     _capsLastAttempt = 0;
     for (int i = 0; i < 8; i++) {
         _pending[i].active = false;
@@ -38,39 +50,32 @@ void SerialBridge::_writeLine(JsonDocument& doc) {
 }
 
 int SerialBridge::sendCommand(const String& op, JsonObject payload, RespCallback cb, unsigned long timeoutMs) {
-    int slot = _allocSlot();
-    if (slot < 0) {
-        Serial.println(F("[SB] Queue full, dropping command"));
-        JsonDocument errDoc;
-        errDoc["error"] = "queue_full";
-        cb(false, errDoc.as<JsonVariant>());
-        return -1;
+    // Disabled JSON command interface to Mega (only raw New_med, Debug, TIme allowed)
+    Serial.print(F("[SB] Ignoring outgoing JSON command to Mega: "));
+    Serial.println(op);
+
+    // Fast-path return success mock payload
+    if (cb) {
+        JsonDocument respDoc;
+        if (op == "test") {
+            respDoc["pass"] = true;
+            respDoc["detail"] = "Skipped (JSON commands disabled)";
+        }
+        cb(true, respDoc.as<JsonVariant>());
     }
-
-    int id = _nextId++;
-    if (_nextId > 30000) _nextId = 1;
-
-    _pending[slot].id = id;
-    _pending[slot].sentAt = millis();
-    _pending[slot].timeoutMs = timeoutMs;
-    _pending[slot].callback = cb;
-    _pending[slot].active = true;
-
-    JsonDocument doc;
-    doc["type"] = MSG_TYPE_CMD;
-    doc["id"] = id;
-    doc["op"] = op;
-    for (JsonPair kv : payload) {
-        doc[kv.key()] = kv.value();
-    }
-
-    _writeLine(doc);
-    return id;
+    return -1;
 }
 
 int SerialBridge::sendCommand(const String& op, RespCallback cb, unsigned long timeoutMs) {
     JsonDocument empty;
     return sendCommand(op, empty.as<JsonObject>(), cb, timeoutMs);
+}
+
+void SerialBridge::sendLine(const String& line) {
+    if (!_sw) return;
+    Serial.print("[SB TX] ");
+    Serial.println(line);
+    _sw->println(line);
 }
 
 void SerialBridge::poll() {

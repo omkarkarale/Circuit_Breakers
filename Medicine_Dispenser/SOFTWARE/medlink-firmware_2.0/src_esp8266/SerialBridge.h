@@ -23,6 +23,7 @@ public:
     static void setEventHandler(EventHandler handler);
     static int sendCommand(const String& op, JsonObject payload, RespCallback cb, unsigned long timeoutMs = 2000);
     static int sendCommand(const String& op, RespCallback cb, unsigned long timeoutMs = 2000);
+    static void sendLine(const String& line);
     static void poll();
     static JsonDocument& getCachedCapabilities();
     static bool capabilitiesKnown();

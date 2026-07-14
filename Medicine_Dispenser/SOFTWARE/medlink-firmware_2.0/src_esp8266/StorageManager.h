@@ -26,6 +26,7 @@ public:
 
     // Logs
     static JsonDocument getLogs();
+    static bool getLogs(JsonVariant target);
     static void appendLog(const String& type, const String& detail);
     static void clearLogs();
 
@@ -39,6 +40,7 @@ public:
 
 private:
     static JsonDocument readJson(const char* path);
+    static bool readJson(const char* path, JsonVariant target);
     static bool writeJson(const char* path, JsonDocument& doc);
     
     static void ensureWifi();

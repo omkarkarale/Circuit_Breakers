@@ -59,6 +59,7 @@ private:
 
     // Helpers
     static bool _runDiagTest(const String& component, String& detail);
+    static void _sendMedicineInfo(int slotNum, bool enabled);
     static int  _diagIndex(const String& component);
     static int  _slotFromUri(const String& uri, int segIndex);
     static uint32_t _nextOccurrence(const String& timeStr);
