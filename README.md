@@ -43,7 +43,7 @@
 
 Team Name: Circuit Breakers
 
-<img src="images/team_image.jpeg" width="450"><br>
+<img src="images/team_image.png" width="450"><br>
 ---
 
 ## 1.2 Team Members
