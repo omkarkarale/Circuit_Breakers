@@ -227,10 +227,29 @@ The Smart Medicine Sorting and Reminder Device is an IoT-enabled healthcare solu
 
 ## Block Diagram
 
-Insert diagram here.
+```mermaid
+flowchart LR
+    A["📱 Mobile App<br/>(Wi-Fi)"]
+    B["📡 ESP8266<br/>Wi-Fi + Logging + Storage"]
+    C["🔌 Serial (UART)"]
+    D["🖥️ Arduino Mega"]
 
-`App (Wi-Fi) → ESP8266 (logging & storage) → Serial → Arduino Mega → [RTC | LCD | DFPlayer Mini + Speaker | Stepper Motors | IR Sensor]`
+    E["⏰ RTC"]
+    F["🖥️ LCD"]
+    G["🔊 DFPlayer Mini<br/>+ Speaker"]
+    H["⚙️ Stepper Motors"]
+    I["📷 IR Sensor"]
 
+    A -->|HTTP API| B
+    B -->|UART Serial| C
+    C --> D
+
+    D --> E
+    D --> F
+    D --> G
+    D --> H
+    D --> I
+```
 ---
 
 ## Inputs
