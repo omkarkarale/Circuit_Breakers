@@ -1,8 +1,8 @@
 ESP8266 DevKit
+Arduino Mega
 DS3231 RTC
 16x2 LCD
 28BYJ-48 stepper + ULN2003
 DFPlayer Mini + speaker
-3 push buttons
 IR sensor
 5V adapter or 18650 battery
